@@ -1,7 +1,19 @@
-import React, { useState, useEffect } from 'react';
-import { ChevronLeft, RotateCcw, Play, BookOpen, Target } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { ChevronLeft, RotateCcw, Play, BookOpen, Target, Undo2 } from 'lucide-react';
 
 const ChessTrainingApp = () => {
+  // Initial board setup - function to always get fresh copy
+  const getInitialBoard = () => [
+    ['r', 'n', 'b', 'q', 'k', 'b', 'n', 'r'],
+    ['p', 'p', 'p', 'p', 'p', 'p', 'p', 'p'],
+    [null, null, null, null, null, null, null, null],
+    [null, null, null, null, null, null, null, null],
+    [null, null, null, null, null, null, null, null],
+    [null, null, null, null, null, null, null, null],
+    ['P', 'P', 'P', 'P', 'P', 'P', 'P', 'P'],
+    ['R', 'N', 'B', 'Q', 'K', 'B', 'N', 'R']
+  ];
+
   // State for responsive design
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
 
@@ -13,19 +25,7 @@ const ChessTrainingApp = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Initial board setup
-  const initialBoard = [
-    ['r', 'n', 'b', 'q', 'k', 'b', 'n', 'r'],
-    ['p', 'p', 'p', 'p', 'p', 'p', 'p', 'p'],
-    [null, null, null, null, null, null, null, null],
-    [null, null, null, null, null, null, null, null],
-    [null, null, null, null, null, null, null, null],
-    [null, null, null, null, null, null, null, null],
-    ['P', 'P', 'P', 'P', 'P', 'P', 'P', 'P'],
-    ['R', 'N', 'B', 'Q', 'K', 'B', 'N', 'R']
-  ];
-
-  const [board, setBoard] = useState(initialBoard);
+  const [board, setBoard] = useState(() => getInitialBoard());
   const [selectedSquare, setSelectedSquare] = useState(null);
   const [currentPlayer, setCurrentPlayer] = useState('white');
   const [moveHistory, setMoveHistory] = useState([]);
@@ -37,6 +37,26 @@ const ChessTrainingApp = () => {
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [showHint, setShowHint] = useState(null);
   const [needsReplay, setNeedsReplay] = useState(false);
+
+  // Undo functionality - minimal addition
+  const [undoStack, setUndoStack] = useState([]);
+
+  // Add timeout refs for cleanup
+  const timeoutRefs = useRef([]);
+
+  const clearAllTimeouts = () => {
+    timeoutRefs.current.forEach(clearTimeout);
+    timeoutRefs.current = [];
+  };
+
+  const addTimeout = (callback, delay) => {
+    const timeoutId = setTimeout(() => {
+      callback();
+      timeoutRefs.current = timeoutRefs.current.filter(id => id !== timeoutId);
+    }, delay);
+    timeoutRefs.current.push(timeoutId);
+    return timeoutId;
+  };
 
   // Opening databases
   const openingDatabases = {
@@ -212,7 +232,7 @@ const ChessTrainingApp = () => {
 
     if (opponentMoves && opponentMoves.length > 0) {
       // Wait a bit to simulate thinking time
-      setTimeout(() => {
+      addTimeout(() => {
         const opponentMove = opponentMoves[Math.floor(Math.random() * opponentMoves.length)];
         console.log('Selected opponent move:', opponentMove);
         const [fromSquare, toSquare] = opponentMove.split('-');
@@ -252,6 +272,35 @@ const ChessTrainingApp = () => {
     }
   };
 
+  const undoLastMove = () => {
+    if (undoStack.length === 0) return;
+
+    const lastState = undoStack[undoStack.length - 1];
+
+    // Clear timeouts to prevent conflicts
+    clearAllTimeouts();
+
+    // Restore the previous state
+    setBoard(lastState.board);
+    setMoveHistory(lastState.moveHistory);
+    setCurrentPlayer(lastState.currentPlayer);
+    setScore(lastState.score);
+    setShowHint(lastState.showHint);
+    setNeedsReplay(lastState.needsReplay);
+
+    // Remove the last state from history
+    setUndoStack(prevStack => prevStack.slice(0, -1));
+
+    setFeedback('Move undone. Try again!');
+    setSelectedSquare(null);
+    setDraggedPiece(null);
+
+    // Clear feedback after a moment
+    addTimeout(() => {
+      setFeedback('');
+    }, 2000);
+  };
+
   const checkMove = (userMove, currentMoveHistory) => {
     const opening = openingDatabases[trainingMode];
     // Use the moveHistory that was passed in, excluding the user's move we just made
@@ -275,16 +324,27 @@ const ChessTrainingApp = () => {
       console.log('Move was correct, calling makeOpponentMove...');
 
       // Wait for move to be processed, then make opponent move
-      setTimeout(() => {
+      addTimeout(() => {
         setFeedback('Opponent is thinking...');
         // Wait a bit more for React state to update, then pass the current move history
-        setTimeout(() => {
+        addTimeout(() => {
           makeOpponentMove(currentMoveHistory);
         }, 300);
       }, 500);
     } else {
       console.log('Move was incorrect, NOT calling makeOpponentMove');
-      setFeedback(`✗ Wrong move! Try the suggested move.`);
+
+      // Save state for undo ONLY when user makes wrong move
+      setUndoStack(prevStack => [...prevStack, {
+        board: board.map(row => [...row]),
+        moveHistory: [...moveHistory],
+        currentPlayer,
+        score: { ...score },
+        showHint: null,
+        needsReplay: false
+      }]);
+
+      setFeedback(`✗ Wrong move! Expected: ${expectedMoves.join(' or ')}. Click "Undo" to try again.`);
       setScore(prev => ({ correct: prev.correct, total: prev.total + 1 }));
       setNeedsReplay(true);
 
@@ -307,7 +367,7 @@ const ChessTrainingApp = () => {
       }
 
       // Clear feedback after longer delay to give user time to see the hint
-      setTimeout(() => {
+      addTimeout(() => {
         setFeedback('');
         setShowHint(null);
         setNeedsReplay(false);
@@ -409,7 +469,7 @@ const ChessTrainingApp = () => {
 
     if (!isUserTurn) {
       setFeedback('Wait for opponent to move...');
-      setTimeout(() => setFeedback(''), 1000);
+      addTimeout(() => setFeedback(''), 1000);
       return;
     }
 
@@ -438,9 +498,16 @@ const ChessTrainingApp = () => {
 
   const startTraining = (mode) => {
     console.log('Starting training for mode:', mode);
+
+    // Clear any existing timeouts
+    clearAllTimeouts();
+
+    const freshBoard = getInitialBoard();
+    console.log('Starting with fresh board:', freshBoard);
+
     setTrainingMode(mode);
     setGameMode('training');
-    setBoard(initialBoard);
+    setBoard(freshBoard);
     setMoveHistory([]);
     setSelectedSquare(null);
     setFeedback('');
@@ -448,6 +515,7 @@ const ChessTrainingApp = () => {
     setDraggedPiece(null);
     setShowHint(null);
     setNeedsReplay(false);
+    setUndoStack([]);
 
     // Set the correct starting player based on opening
     const opening = openingDatabases[mode];
@@ -458,7 +526,7 @@ const ChessTrainingApp = () => {
       setFeedback('White is making the first move...');
 
       // Make the first white move automatically after a short delay
-      setTimeout(() => {
+      addTimeout(() => {
         console.log('Making automatic first white move');
         const firstMove = opening.moves[""][0]; // Should be "e2-e4"
         console.log('First move from database:', firstMove);
@@ -471,7 +539,7 @@ const ChessTrainingApp = () => {
           console.log(`Making first move: ${fromSquare} to ${toSquare}`);
 
           // Use makeMove to handle the first move properly
-          setTimeout(() => {
+          addTimeout(() => {
             makeMove(fromRow, fromCol, toRow, toCol);
             setFeedback('Your turn! Play 1...c5 for the Sicilian Defense.');
           }, 100);
@@ -487,47 +555,64 @@ const ChessTrainingApp = () => {
 
   const resetGame = () => {
     console.log('Resetting game');
-    setBoard(initialBoard);
+
+    // Clear all pending timeouts first
+    clearAllTimeouts();
+
+    // Force immediate state reset with fresh board
+    const freshBoard = getInitialBoard();
+    console.log('Resetting board to:', freshBoard);
+
+    setBoard(freshBoard);
     setMoveHistory([]);
     setSelectedSquare(null);
     setFeedback('');
     setDraggedPiece(null);
     setShowHint(null);
     setNeedsReplay(false);
+    setUndoStack([]);
+    setScore({ correct: 0, total: 0 });
 
-    // Reset to correct starting player and make first move if needed
-    const opening = openingDatabases[trainingMode];
-    if (opening.color === 'black') {
-      setCurrentPlayer('white');
-      setFeedback('White is making the first move...');
+    // Wait a moment for state to settle, then restart
+    addTimeout(() => {
+      const opening = openingDatabases[trainingMode];
+      if (opening.color === 'black') {
+        setCurrentPlayer('white');
+        setFeedback('White is making the first move...');
 
-      // Make the first white move automatically after reset
-      setTimeout(() => {
-        const firstMove = opening.moves[""][0]; // Should be "e2-e4"
+        // Make the first white move automatically after reset
+        addTimeout(() => {
+          const firstMove = opening.moves[""][0]; // Should be "e2-e4"
 
-        if (firstMove) {
-          const [fromSquare, toSquare] = firstMove.split('-');
-          const [fromRow, fromCol] = parseSquareName(fromSquare);
-          const [toRow, toCol] = parseSquareName(toSquare);
+          if (firstMove) {
+            const [fromSquare, toSquare] = firstMove.split('-');
+            const [fromRow, fromCol] = parseSquareName(fromSquare);
+            const [toRow, toCol] = parseSquareName(toSquare);
 
-          console.log(`Reset: Making first move ${fromSquare} to ${toSquare}`);
+            console.log(`Reset: Making first move ${fromSquare} to ${toSquare}`);
 
-          // Use makeMove to handle the first move properly
-          setTimeout(() => {
-            makeMove(fromRow, fromCol, toRow, toCol);
-            setFeedback('Your turn! Play 1...c5 for the Sicilian Defense.');
-          }, 100);
-        }
-      }, 1000);
-    } else {
-      setCurrentPlayer('white');
-      setFeedback('Your turn! Make your opening move.');
-    }
+            // Use makeMove to handle the first move properly
+            addTimeout(() => {
+              makeMove(fromRow, fromCol, toRow, toCol);
+              setFeedback('Your turn! Play 1...c5 for the Sicilian Defense.');
+            }, 100);
+          }
+        }, 1000);
+      } else {
+        setCurrentPlayer('white');
+        setFeedback('Your turn! Make your opening move.');
+      }
+    }, 100); // Small delay to let state reset
   };
 
   const backToMenu = () => {
+    clearAllTimeouts();
     setGameMode('menu');
     setTrainingMode(null);
+    setBoard(getInitialBoard()); // Reset board when going back to menu
+    setMoveHistory([]);
+    setScore({ correct: 0, total: 0 });
+    setUndoStack([]);
   };
 
   // Handle global mouse events for drag and drop
@@ -556,6 +641,13 @@ const ChessTrainingApp = () => {
       document.removeEventListener('mouseup', handleGlobalMouseUp);
     };
   }, [draggedPiece]);
+
+  // Cleanup timeouts on unmount
+  useEffect(() => {
+    return () => {
+      clearAllTimeouts();
+    };
+  }, []);
 
   // Styles
   const styles = {
@@ -775,7 +867,7 @@ const ChessTrainingApp = () => {
               </div>
               <div>
                 <h4 style={{fontWeight: '600', marginBottom: '10px', color: '#374151'}}>📈 Immediate Feedback</h4>
-                <p style={{color: '#6b7280', fontSize: '0.9rem', lineHeight: '1.5'}}>Get instant feedback on your moves. Learn the best responses for each position.</p>
+                <p style={{color: '#6b7280', fontSize: '0.9rem', lineHeight: '1.5'}}>Get instant feedback on your moves. Make a mistake? Just click "Undo" to try again!</p>
               </div>
             </div>
             <div style={{marginTop: '20px', padding: '15px', backgroundColor: '#f0f9ff', borderRadius: '8px', border: '1px solid #0ea5e9'}}>
@@ -807,10 +899,25 @@ const ChessTrainingApp = () => {
             <p style={{color: '#a16207'}}>Playing as {opening.color}</p>
           </div>
 
-          <button style={styles.navButton} onClick={resetGame}>
-            <RotateCcw size={20} style={{marginRight: '5px'}} />
-            Reset
-          </button>
+          <div style={{display: 'flex', gap: '15px'}}>
+            <button
+              style={{
+                ...styles.navButton,
+                opacity: undoStack.length > 0 ? 1 : 0.5,
+                cursor: undoStack.length > 0 ? 'pointer' : 'not-allowed'
+              }}
+              onClick={undoStack.length > 0 ? undoLastMove : undefined}
+              disabled={undoStack.length === 0}
+            >
+              <Undo2 size={20} style={{marginRight: '5px'}} />
+              Undo
+            </button>
+
+            <button style={styles.navButton} onClick={resetGame}>
+              <RotateCcw size={20} style={{marginRight: '5px'}} />
+              Reset
+            </button>
+          </div>
         </div>
 
         <div style={styles.gameLayout}>
@@ -839,9 +946,11 @@ const ChessTrainingApp = () => {
 
               {/* Board with coordinates */}
               <div style={styles.coordinatesContainer}>
-                {/* Top rank numbers */}
+                {/* Top file letters */}
                 {Array.from({length: 8}, (_, i) => {
-                  const rank = trainingMode && openingDatabases[trainingMode]?.color === 'black' ? i + 1 : 8 - i;
+                  const file = trainingMode && openingDatabases[trainingMode]?.color === 'black'
+                    ? String.fromCharCode(104 - i) // h,g,f,e,d,c,b,a
+                    : String.fromCharCode(97 + i);  // a,b,c,d,e,f,g,h
                   return (
                     <div key={`top-${i}`} style={{
                       gridColumn: i + 2,
@@ -850,16 +959,14 @@ const ChessTrainingApp = () => {
                       alignItems: 'center',
                       justifyContent: 'center'
                     }}>
-                      {rank}
+                      {file}
                     </div>
                   );
                 })}
 
-                {/* Left file letters */}
+                {/* Left rank numbers */}
                 {Array.from({length: 8}, (_, i) => {
-                  const file = trainingMode && openingDatabases[trainingMode]?.color === 'black'
-                    ? String.fromCharCode(104 - i) // h,g,f,e,d,c,b,a
-                    : String.fromCharCode(97 + i);  // a,b,c,d,e,f,g,h
+                  const rank = trainingMode && openingDatabases[trainingMode]?.color === 'black' ? i + 1 : 8 - i;
                   return (
                     <div key={`left-${i}`} style={{
                       gridColumn: 1,
@@ -868,7 +975,7 @@ const ChessTrainingApp = () => {
                       alignItems: 'center',
                       justifyContent: 'center'
                     }}>
-                      {file}
+                      {rank}
                     </div>
                   );
                 })}
@@ -995,11 +1102,9 @@ const ChessTrainingApp = () => {
                   )}
                 </div>
 
-                {/* Right file letters */}
+                {/* Right rank numbers */}
                 {Array.from({length: 8}, (_, i) => {
-                  const file = trainingMode && openingDatabases[trainingMode]?.color === 'black'
-                    ? String.fromCharCode(104 - i) // h,g,f,e,d,c,b,a
-                    : String.fromCharCode(97 + i);  // a,b,c,d,e,f,g,h
+                  const rank = trainingMode && openingDatabases[trainingMode]?.color === 'black' ? i + 1 : 8 - i;
                   return (
                     <div key={`right-${i}`} style={{
                       gridColumn: 10,
@@ -1008,14 +1113,16 @@ const ChessTrainingApp = () => {
                       alignItems: 'center',
                       justifyContent: 'center'
                     }}>
-                      {file}
+                      {rank}
                     </div>
                   );
                 })}
 
-                {/* Bottom rank numbers */}
+                {/* Bottom file letters */}
                 {Array.from({length: 8}, (_, i) => {
-                  const rank = trainingMode && openingDatabases[trainingMode]?.color === 'black' ? i + 1 : 8 - i;
+                  const file = trainingMode && openingDatabases[trainingMode]?.color === 'black'
+                    ? String.fromCharCode(104 - i) // h,g,f,e,d,c,b,a
+                    : String.fromCharCode(97 + i);  // a,b,c,d,e,f,g,h
                   return (
                     <div key={`bottom-${i}`} style={{
                       gridColumn: i + 2,
@@ -1024,7 +1131,7 @@ const ChessTrainingApp = () => {
                       alignItems: 'center',
                       justifyContent: 'center'
                     }}>
-                      {rank}
+                      {file}
                     </div>
                   );
                 })}
@@ -1071,17 +1178,41 @@ const ChessTrainingApp = () => {
               }}>
                 <p style={{ margin: 0 }}>{feedback}</p>
                 {showHint && (
-                  <p style={{
-                    margin: '10px 0 0 0',
-                    fontSize: '0.9rem',
-                    color: '#b45309',
-                    backgroundColor: '#fef3c7',
-                    padding: '8px 12px',
-                    borderRadius: '6px',
-                    border: '1px solid #fbbf24'
-                  }}>
-                    💡 Hint: Move from {showHint.notation.split('-')[0]} to {showHint.notation.split('-')[1]}
-                  </p>
+                  <div style={{ marginTop: '15px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    <p style={{
+                      margin: 0,
+                      fontSize: '0.9rem',
+                      color: '#b45309',
+                      backgroundColor: '#fef3c7',
+                      padding: '8px 12px',
+                      borderRadius: '6px',
+                      border: '1px solid #fbbf24'
+                    }}>
+                      💡 Hint: Move from {showHint.notation.split('-')[0]} to {showHint.notation.split('-')[1]}
+                    </p>
+                    {undoStack.length > 0 && (
+                      <button
+                        style={{
+                          padding: '8px 16px',
+                          backgroundColor: '#3b82f6',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '6px',
+                          cursor: 'pointer',
+                          fontSize: '0.9rem',
+                          fontWeight: '600',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '5px'
+                        }}
+                        onClick={undoLastMove}
+                      >
+                        <Undo2 size={16} />
+                        Try Again
+                      </button>
+                    )}
+                  </div>
                 )}
               </div>
             )}
