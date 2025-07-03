@@ -588,11 +588,6 @@ const ChessTrainingApp = () => {
     }
   };
 
-  const handleSquareTouch = (e, displayRow, displayCol) => {
-    e.preventDefault(); // Prevent double-firing of click events
-    handleSquareClick(displayRow, displayCol);
-  };
-
   const startTraining = (mode) => {
     console.log('Starting training for mode:', mode);
 
