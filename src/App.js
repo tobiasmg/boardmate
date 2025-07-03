@@ -10,10 +10,15 @@ const ChessTrainingApp = () => {
       @import url('https://fonts.googleapis.com/css2?family=Noto+Color+Emoji&display=swap');
 
       .chess-piece {
-        font-family: 'Noto Color Emoji', 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', monospace !important;
+        font-family: 'Chess Merida', 'Chess Alpha', 'Segoe UI Symbol', 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', monospace !important;
         font-feature-settings: "liga" 1, "calt" 1;
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
+        font-variant-emoji: text;
+        text-rendering: optimizeLegibility;
+        font-size: inherit !important;
+        line-height: 1 !important;
+        vertical-align: baseline !important;
       }
 
       body {
@@ -152,9 +157,9 @@ const ChessTrainingApp = () => {
     }
   };
 
-  // Piece Unicode symbols (chess.com style) with mobile-friendly fallbacks
+  // Piece Unicode symbols - using solid symbols for consistency
   const pieceSymbols = {
-    'K': '♔', 'Q': '♕', 'R': '♖', 'B': '♗', 'N': '♘', 'P': '♙',
+    'K': '♚', 'Q': '♛', 'R': '♜', 'B': '♝', 'N': '♞', 'P': '♟',
     'k': '♚', 'q': '♛', 'r': '♜', 'b': '♝', 'n': '♞', 'p': '♟'
   };
 
@@ -1130,11 +1135,12 @@ const ChessTrainingApp = () => {
                         backgroundColor = isLightSquare ? '#f0d9b5' : '#b58863'; // Chess.com colors
                       }
 
-                      // Enhanced piece styling - mobile-friendly with better contrast
+                      // Enhanced piece styling - solid pieces with consistent appearance
                       const pieceColor = isPieceWhite(piece) ? '#ffffff' : '#000000';
+                      const pieceBackgroundColor = isPieceWhite(piece) ? 'rgba(0, 0, 0, 0.1)' : 'rgba(255, 255, 255, 0.1)';
                       const textShadow = isPieceWhite(piece)
-                        ? '2px 2px 4px rgba(0,0,0,0.9), 0 0 3px rgba(0,0,0,0.7), 1px 1px 0 rgba(0,0,0,0.8)'
-                        : '2px 2px 4px rgba(255,255,255,0.9), 0 0 3px rgba(255,255,255,0.7), 1px 1px 0 rgba(255,255,255,0.8)';
+                        ? '2px 2px 4px rgba(0,0,0,0.9), 0 0 3px rgba(0,0,0,0.8), -1px -1px 0 rgba(0,0,0,0.6), 1px -1px 0 rgba(0,0,0,0.6), -1px 1px 0 rgba(0,0,0,0.6), 1px 1px 0 rgba(0,0,0,0.6)'
+                        : '2px 2px 4px rgba(255,255,255,0.9), 0 0 3px rgba(255,255,255,0.8), -1px -1px 0 rgba(255,255,255,0.6), 1px -1px 0 rgba(255,255,255,0.6), -1px 1px 0 rgba(255,255,255,0.6), 1px 1px 0 rgba(255,255,255,0.6)';
 
                       return (
                         <div
@@ -1188,7 +1194,18 @@ const ChessTrainingApp = () => {
                           }}
                         >
                           {piece && !isDragging && (
-                            <span className="chess-piece">{pieceSymbols[piece]}</span>
+                            <span
+                              className="chess-piece"
+                              style={{
+                                backgroundColor: piece ? pieceBackgroundColor : 'transparent',
+                                borderRadius: '50%',
+                                padding: '2px',
+                                lineHeight: '1',
+                                display: 'inline-block'
+                              }}
+                            >
+                              {pieceSymbols[piece]}
+                            </span>
                           )}
                         </div>
                       );
@@ -1233,16 +1250,27 @@ const ChessTrainingApp = () => {
                       pointerEvents: 'none',
                       fontSize: isMobile ? '2.8rem' : '3.8rem',
                       fontWeight: 'bold',
-                      color: isPieceWhite(draggedPiece.piece) ? '#ffffff' : '#000000',
-                      textShadow: isPieceWhite(draggedPiece.piece)
-                        ? '2px 2px 4px rgba(0,0,0,0.9), 0 0 3px rgba(0,0,0,0.7), 1px 1px 0 rgba(0,0,0,0.8)'
-                        : '2px 2px 4px rgba(255,255,255,0.9), 0 0 3px rgba(255,255,255,0.7), 1px 1px 0 rgba(255,255,255,0.8)',
                       zIndex: 1000,
                       left: `${dragOffset.x}px`,
                       top: `${dragOffset.y}px`,
                       transform: 'translate(-50%, -50%)'
                     }}>
-                      <span className="chess-piece">{pieceSymbols[draggedPiece.piece]}</span>
+                      <span
+                        className="chess-piece"
+                        style={{
+                          color: isPieceWhite(draggedPiece.piece) ? '#ffffff' : '#000000',
+                          textShadow: isPieceWhite(draggedPiece.piece)
+                            ? '2px 2px 4px rgba(0,0,0,0.9), 0 0 3px rgba(0,0,0,0.8), -1px -1px 0 rgba(0,0,0,0.6), 1px -1px 0 rgba(0,0,0,0.6), -1px 1px 0 rgba(0,0,0,0.6), 1px 1px 0 rgba(0,0,0,0.6)'
+                            : '2px 2px 4px rgba(255,255,255,0.9), 0 0 3px rgba(255,255,255,0.8), -1px -1px 0 rgba(255,255,255,0.6), 1px -1px 0 rgba(255,255,255,0.6), -1px 1px 0 rgba(255,255,255,0.6), 1px 1px 0 rgba(255,255,255,0.6)',
+                          backgroundColor: isPieceWhite(draggedPiece.piece) ? 'rgba(0, 0, 0, 0.1)' : 'rgba(255, 255, 255, 0.1)',
+                          borderRadius: '50%',
+                          padding: '2px',
+                          lineHeight: '1',
+                          display: 'inline-block'
+                        }}
+                      >
+                        {pieceSymbols[draggedPiece.piece]}
+                      </span>
                     </div>
                   )}
                 </div>
