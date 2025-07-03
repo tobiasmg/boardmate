@@ -33,6 +33,10 @@ const ChessTrainingApp = () => {
   const [trainingMode, setTrainingMode] = useState(null);
   const [feedback, setFeedback] = useState('');
   const [score, setScore] = useState({ correct: 0, total: 0 });
+  const [draggedPiece, setDraggedPiece] = useState(null);
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const [showHint, setShowHint] = useState(null);
+  const [needsReplay, setNeedsReplay] = useState(false);
 
   // Opening databases
   const openingDatabases = {
@@ -205,10 +209,9 @@ const ChessTrainingApp = () => {
 
     console.log('Looking for opponent move with key:', `"${nextMoveKey}"`);
     console.log('Available moves for this key:', opponentMoves);
-    console.log('All available keys in database:', Object.keys(opening.moves));
 
     if (opponentMoves && opponentMoves.length > 0) {
-      // Wait a bit to simulate thinking time AND for React state to update
+      // Wait a bit to simulate thinking time
       setTimeout(() => {
         const opponentMove = opponentMoves[Math.floor(Math.random() * opponentMoves.length)];
         console.log('Selected opponent move:', opponentMove);
@@ -218,7 +221,7 @@ const ChessTrainingApp = () => {
 
         console.log(`Opponent moving from ${fromSquare} to ${toSquare}`);
 
-        // Use the regular makeMove function to ensure consistent state handling
+        // Make the opponent move with a single state update
         setBoard(currentBoard => {
           const newBoard = currentBoard.map(row => [...row]);
           const piece = newBoard[fromRow][fromCol];
@@ -232,6 +235,7 @@ const ChessTrainingApp = () => {
         });
 
         const moveNotation = `${getSquareName(fromRow, fromCol)}-${getSquareName(toRow, toCol)}`;
+
         setMoveHistory(prevHistory => {
           const updatedHistory = [...prevHistory, moveNotation];
           console.log('Updated move history after opponent move:', updatedHistory);
@@ -239,12 +243,9 @@ const ChessTrainingApp = () => {
         });
 
         setCurrentPlayer(prevPlayer => prevPlayer === 'white' ? 'black' : 'white');
+        setFeedback('Your turn!');
 
-        // Wait a moment for state to update, then set feedback
-        setTimeout(() => {
-          setFeedback('Your turn!');
-        }, 100);
-      }, 800); // Increased delay to ensure state is fully updated
+      }, 800);
     } else {
       console.log('No opponent moves found for key:', `"${nextMoveKey}"`);
       setFeedback('End of opening line - great job!');
@@ -261,10 +262,17 @@ const ChessTrainingApp = () => {
     console.log('Current move history:', currentMoveHistory);
     console.log('Move key for lookup:', `"${moveKey}"`);
     console.log('Expected moves:', expectedMoves);
+    console.log('Move is correct?', expectedMoves.includes(userMove));
+
+    // Clear any existing hints
+    setShowHint(null);
+    setNeedsReplay(false);
 
     if (expectedMoves.includes(userMove)) {
       setFeedback('✓ Correct move!');
       setScore(prev => ({ correct: prev.correct + 1, total: prev.total + 1 }));
+
+      console.log('Move was correct, calling makeOpponentMove...');
 
       // Wait for move to be processed, then make opponent move
       setTimeout(() => {
@@ -275,23 +283,116 @@ const ChessTrainingApp = () => {
         }, 300);
       }, 500);
     } else {
-      setFeedback(`✗ Not the best move. Try: ${expectedMoves.join(' or ')}`);
+      console.log('Move was incorrect, NOT calling makeOpponentMove');
+      setFeedback(`✗ Wrong move! Try the suggested move.`);
       setScore(prev => ({ correct: prev.correct, total: prev.total + 1 }));
+      setNeedsReplay(true);
 
-      // Clear feedback but don't make opponent move since user move was wrong
+      // Show hint arrow for the best move
+      if (expectedMoves.length > 0) {
+        const bestMove = expectedMoves[0];
+        const [fromSquare, toSquare] = bestMove.split('-');
+        const [fromRow, fromCol] = parseSquareName(fromSquare);
+        const [toRow, toCol] = parseSquareName(toSquare);
+
+        // Convert to display coordinates
+        const [fromDisplayRow, fromDisplayCol] = getDisplayCoordinates(fromRow, fromCol);
+        const [toDisplayRow, toDisplayCol] = getDisplayCoordinates(toRow, toCol);
+
+        setShowHint({
+          from: { row: fromDisplayRow, col: fromDisplayCol },
+          to: { row: toDisplayRow, col: toDisplayCol },
+          notation: bestMove
+        });
+      }
+
+      // Clear feedback after longer delay to give user time to see the hint
       setTimeout(() => {
         setFeedback('');
-      }, 3000);
+        setShowHint(null);
+        setNeedsReplay(false);
+      }, 5000);
     }
   };
 
-  const handleSquareClick = (displayRow, displayCol) => {
+  const handleMouseDown = (e, displayRow, displayCol) => {
     if (gameMode !== 'training') return;
 
     // Convert display coordinates to actual board coordinates
     let row, col;
     if (trainingMode && openingDatabases[trainingMode]?.color === 'black') {
-      // Flip back to get actual board coordinates
+      row = 7 - displayRow;
+      col = 7 - displayCol;
+    } else {
+      row = displayRow;
+      col = displayCol;
+    }
+
+    const opening = openingDatabases[trainingMode];
+    const piece = board[row][col];
+
+    // Check if it's the user's turn and they're clicking their piece
+    const isUserTurn = (opening.color === 'white' && currentPlayer === 'white') ||
+                       (opening.color === 'black' && currentPlayer === 'black');
+
+    if (!isUserTurn || !piece || isPieceWhite(piece) !== (currentPlayer === 'white')) {
+      return;
+    }
+
+    e.preventDefault();
+    const rect = e.currentTarget.getBoundingClientRect();
+    setDraggedPiece({
+      piece,
+      fromRow: row,
+      fromCol: col,
+      displayRow,
+      displayCol
+    });
+    setDragOffset({
+      x: e.clientX - rect.left - rect.width / 2,
+      y: e.clientY - rect.top - rect.height / 2
+    });
+    setSelectedSquare([row, col]);
+  };
+
+  const handleMouseMove = (e) => {
+    if (!draggedPiece) return;
+    e.preventDefault();
+  };
+
+  const handleMouseUp = (e, targetDisplayRow, targetDisplayCol) => {
+    if (!draggedPiece) return;
+    e.preventDefault();
+
+    // Convert target display coordinates to actual board coordinates
+    let targetRow, targetCol;
+    if (trainingMode && openingDatabases[trainingMode]?.color === 'black') {
+      targetRow = 7 - targetDisplayRow;
+      targetCol = 7 - targetDisplayCol;
+    } else {
+      targetRow = targetDisplayRow;
+      targetCol = targetDisplayCol;
+    }
+
+    const { fromRow, fromCol } = draggedPiece;
+
+    if (isValidMove(fromRow, fromCol, targetRow, targetCol, draggedPiece.piece)) {
+      const { moveNotation, updatedMoveHistory } = makeMove(fromRow, fromCol, targetRow, targetCol);
+      checkMove(moveNotation, updatedMoveHistory);
+    }
+
+    setDraggedPiece(null);
+    setSelectedSquare(null);
+  };
+
+  const handleSquareClick = (displayRow, displayCol) => {
+    if (draggedPiece) return; // Ignore clicks during drag
+
+    if (gameMode !== 'training') return;
+
+    // Convert display coordinates to actual board coordinates
+    let row, col;
+    if (trainingMode && openingDatabases[trainingMode]?.color === 'black') {
       row = 7 - displayRow;
       col = 7 - displayCol;
     } else {
@@ -344,6 +445,9 @@ const ChessTrainingApp = () => {
     setSelectedSquare(null);
     setFeedback('');
     setScore({ correct: 0, total: 0 });
+    setDraggedPiece(null);
+    setShowHint(null);
+    setNeedsReplay(false);
 
     // Set the correct starting player based on opening
     const opening = openingDatabases[mode];
@@ -387,6 +491,9 @@ const ChessTrainingApp = () => {
     setMoveHistory([]);
     setSelectedSquare(null);
     setFeedback('');
+    setDraggedPiece(null);
+    setShowHint(null);
+    setNeedsReplay(false);
 
     // Reset to correct starting player and make first move if needed
     const opening = openingDatabases[trainingMode];
@@ -422,6 +529,33 @@ const ChessTrainingApp = () => {
     setGameMode('menu');
     setTrainingMode(null);
   };
+
+  // Handle global mouse events for drag and drop
+  useEffect(() => {
+    const handleGlobalMouseMove = (e) => {
+      if (draggedPiece) {
+        setDragOffset({
+          x: e.clientX,
+          y: e.clientY
+        });
+      }
+    };
+
+    const handleGlobalMouseUp = () => {
+      if (draggedPiece) {
+        setDraggedPiece(null);
+        setSelectedSquare(null);
+      }
+    };
+
+    document.addEventListener('mousemove', handleGlobalMouseMove);
+    document.addEventListener('mouseup', handleGlobalMouseUp);
+
+    return () => {
+      document.removeEventListener('mousemove', handleGlobalMouseMove);
+      document.removeEventListener('mouseup', handleGlobalMouseUp);
+    };
+  }, [draggedPiece]);
 
   // Styles
   const styles = {
@@ -524,6 +658,16 @@ const ChessTrainingApp = () => {
       alignItems: 'center',
       position: 'relative'
     },
+    coordinatesContainer: {
+      display: 'grid',
+      gridTemplateColumns: '30px repeat(8, 1fr) 30px',
+      gridTemplateRows: '30px repeat(8, 1fr) 30px',
+      width: isMobile ? '410px' : '560px',
+      height: isMobile ? '410px' : '560px',
+      fontSize: '14px',
+      fontWeight: '600',
+      color: '#8B4513'
+    },
     board: {
       display: 'grid',
       gridTemplateColumns: 'repeat(8, 1fr)',
@@ -533,7 +677,10 @@ const ChessTrainingApp = () => {
       border: '3px solid #8B4513',
       borderRadius: '4px',
       overflow: 'hidden',
-      boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)'
+      boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)',
+      gridColumn: '2 / 10',
+      gridRow: '2 / 10',
+      position: 'relative'
     },
     square: {
       display: 'flex',
@@ -674,69 +821,213 @@ const ChessTrainingApp = () => {
                 <div style={{
                   marginBottom: '10px',
                   textAlign: 'center',
-                  color: '#a16207',
+                  color: needsReplay ? '#dc2626' : '#a16207',
                   fontSize: '0.9rem',
-                  fontWeight: '600'
+                  fontWeight: '600',
+                  padding: needsReplay ? '8px 16px' : '0',
+                  backgroundColor: needsReplay ? '#fef2f2' : 'transparent',
+                  borderRadius: needsReplay ? '8px' : '0',
+                  border: needsReplay ? '2px solid #dc2626' : 'none'
                 }}>
-                  {openingDatabases[trainingMode].color === 'black'
+                  {needsReplay ? '⚠️ Wrong move! Follow the yellow arrow to make the correct move.' :
+                   (openingDatabases[trainingMode].color === 'black'
                     ? '♟ Playing as Black (Black pieces at bottom)'
                     : '♙ Playing as White (White pieces at bottom)'
-                  }
+                  )}
                 </div>
               )}
 
-              <div style={styles.board}>
-                {board.flatMap((row, rowIndex) =>
-                  row.map((piece, colIndex) => {
-                    // Get display coordinates (potentially flipped)
-                    const [displayRow, displayCol] = getDisplayCoordinates(rowIndex, colIndex);
-                    const isLightSquare = (displayRow + displayCol) % 2 === 0;
-                    const isSelected = selectedSquare && selectedSquare[0] === rowIndex && selectedSquare[1] === colIndex;
+              {/* Board with coordinates */}
+              <div style={styles.coordinatesContainer}>
+                {/* Top rank numbers */}
+                {Array.from({length: 8}, (_, i) => {
+                  const rank = trainingMode && openingDatabases[trainingMode]?.color === 'black' ? i + 1 : 8 - i;
+                  return (
+                    <div key={`top-${i}`} style={{
+                      gridColumn: i + 2,
+                      gridRow: 1,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}>
+                      {rank}
+                    </div>
+                  );
+                })}
 
-                    // Chess.com style colors
-                    let backgroundColor;
-                    if (isSelected) {
-                      backgroundColor = '#f7dc6f'; // Yellow highlight for selected
-                    } else {
-                      backgroundColor = isLightSquare ? '#f0d9b5' : '#b58863'; // Chess.com colors
-                    }
+                {/* Left file letters */}
+                {Array.from({length: 8}, (_, i) => {
+                  const file = trainingMode && openingDatabases[trainingMode]?.color === 'black'
+                    ? String.fromCharCode(104 - i) // h,g,f,e,d,c,b,a
+                    : String.fromCharCode(97 + i);  // a,b,c,d,e,f,g,h
+                  return (
+                    <div key={`left-${i}`} style={{
+                      gridColumn: 1,
+                      gridRow: i + 2,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}>
+                      {file}
+                    </div>
+                  );
+                })}
 
-                    // Enhanced piece styling for chess.com look
-                    const pieceColor = isPieceWhite(piece) ? '#ffffff' : '#000000';
-                    const textShadow = isPieceWhite(piece)
-                      ? '1px 1px 2px rgba(0,0,0,0.8), 0 0 3px rgba(0,0,0,0.3)'
-                      : '1px 1px 2px rgba(255,255,255,0.4), 0 0 2px rgba(255,255,255,0.2)';
+                {/* The chess board */}
+                <div style={styles.board} onMouseMove={handleMouseMove}>
+                  {board.flatMap((row, rowIndex) =>
+                    row.map((piece, colIndex) => {
+                      // Get display coordinates (potentially flipped)
+                      const [displayRow, displayCol] = getDisplayCoordinates(rowIndex, colIndex);
+                      const isLightSquare = (displayRow + displayCol) % 2 === 0;
+                      const isSelected = selectedSquare && selectedSquare[0] === rowIndex && selectedSquare[1] === colIndex;
+                      const isDragging = draggedPiece && draggedPiece.fromRow === rowIndex && draggedPiece.fromCol === colIndex;
 
-                    return (
-                      <div
-                        key={`${rowIndex}-${colIndex}`}
-                        style={{
-                          ...styles.square,
-                          backgroundColor,
-                          border: isSelected ? '2px solid #f39c12' : 'none',
-                          color: pieceColor,
-                          textShadow: piece ? textShadow : 'none',
-                          // Position this square at its display coordinates
-                          gridColumn: displayCol + 1,
-                          gridRow: displayRow + 1
-                        }}
-                        onClick={() => handleSquareClick(displayRow, displayCol)}
-                        onMouseEnter={(e) => {
-                          if (!isSelected) {
-                            e.target.style.backgroundColor = isLightSquare ? '#ead5aa' : '#a67c52';
-                          }
-                        }}
-                        onMouseLeave={(e) => {
-                          if (!isSelected) {
-                            e.target.style.backgroundColor = isLightSquare ? '#f0d9b5' : '#b58863';
-                          }
-                        }}
-                      >
-                        {piece && pieceSymbols[piece]}
-                      </div>
-                    );
-                  })
-                )}
+                      // Chess.com style colors
+                      let backgroundColor;
+                      if (isSelected) {
+                        backgroundColor = '#f7dc6f'; // Yellow highlight for selected
+                      } else {
+                        backgroundColor = isLightSquare ? '#f0d9b5' : '#b58863'; // Chess.com colors
+                      }
+
+                      // Enhanced piece styling - fully white pieces
+                      const pieceColor = isPieceWhite(piece) ? '#ffffff' : '#2c2c2c';
+                      const textShadow = isPieceWhite(piece)
+                        ? '2px 2px 4px rgba(0,0,0,0.8), 0 0 2px rgba(0,0,0,0.5)'
+                        : '1px 1px 2px rgba(255,255,255,0.4), 0 0 2px rgba(255,255,255,0.2)';
+
+                      return (
+                        <div
+                          key={`${rowIndex}-${colIndex}`}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: isMobile ? '2.8rem' : '3.8rem',
+                            cursor: piece ? 'pointer' : 'default',
+                            transition: 'background-color 0.15s ease, border 0.15s ease',
+                            userSelect: 'none',
+                            fontWeight: 'bold',
+                            width: '100%',
+                            height: '100%',
+                            minWidth: 0,
+                            minHeight: 0,
+                            boxSizing: 'border-box',
+                            backgroundColor,
+                            border: isSelected ? '2px solid #f39c12' : 'none',
+                            color: pieceColor,
+                            textShadow: piece ? textShadow : 'none',
+                            // Position this square at its display coordinates
+                            gridColumn: displayCol + 1,
+                            gridRow: displayRow + 1,
+                            opacity: isDragging ? 0.3 : 1
+                          }}
+                          onMouseDown={(e) => handleMouseDown(e, displayRow, displayCol)}
+                          onMouseUp={(e) => handleMouseUp(e, displayRow, displayCol)}
+                          onClick={() => handleSquareClick(displayRow, displayCol)}
+                          onMouseEnter={(e) => {
+                            if (!isSelected && !draggedPiece) {
+                              e.target.style.backgroundColor = isLightSquare ? '#ead5aa' : '#a67c52';
+                            }
+                          }}
+                          onMouseLeave={(e) => {
+                            if (!isSelected && !draggedPiece) {
+                              e.target.style.backgroundColor = isLightSquare ? '#f0d9b5' : '#b58863';
+                            }
+                          }}
+                        >
+                          {piece && !isDragging && pieceSymbols[piece]}
+                        </div>
+                      );
+                    })
+                  )}
+
+                  {/* Hint Arrow */}
+                  {showHint && (
+                    <div style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      width: '100%',
+                      height: '100%',
+                      pointerEvents: 'none',
+                      zIndex: 10
+                    }}>
+                      <svg style={{ width: '100%', height: '100%' }}>
+                        <defs>
+                          <marker id="arrowhead" markerWidth="10" markerHeight="7"
+                                  refX="9" refY="3.5" orient="auto">
+                            <polygon points="0 0, 10 3.5, 0 7" fill="#ffeb3b" stroke="#f39c12" strokeWidth="1"/>
+                          </marker>
+                        </defs>
+                        <line
+                          x1={`${(showHint.from.col + 0.5) * 12.5}%`}
+                          y1={`${(showHint.from.row + 0.5) * 12.5}%`}
+                          x2={`${(showHint.to.col + 0.5) * 12.5}%`}
+                          y2={`${(showHint.to.row + 0.5) * 12.5}%`}
+                          stroke="#ffeb3b"
+                          strokeWidth="6"
+                          markerEnd="url(#arrowhead)"
+                        />
+                      </svg>
+                    </div>
+                  )}
+
+                  {/* Dragged piece */}
+                  {draggedPiece && (
+                    <div style={{
+                      position: 'fixed',
+                      pointerEvents: 'none',
+                      fontSize: isMobile ? '2.8rem' : '3.8rem',
+                      fontWeight: 'bold',
+                      color: isPieceWhite(draggedPiece.piece) ? '#ffffff' : '#2c2c2c',
+                      textShadow: isPieceWhite(draggedPiece.piece)
+                        ? '2px 2px 4px rgba(0,0,0,0.8), 0 0 2px rgba(0,0,0,0.5)'
+                        : '1px 1px 2px rgba(255,255,255,0.4), 0 0 2px rgba(255,255,255,0.2)',
+                      zIndex: 1000,
+                      left: `${dragOffset.x}px`,
+                      top: `${dragOffset.y}px`,
+                      transform: 'translate(-50%, -50%)'
+                    }}>
+                      {pieceSymbols[draggedPiece.piece]}
+                    </div>
+                  )}
+                </div>
+
+                {/* Right file letters */}
+                {Array.from({length: 8}, (_, i) => {
+                  const file = trainingMode && openingDatabases[trainingMode]?.color === 'black'
+                    ? String.fromCharCode(104 - i) // h,g,f,e,d,c,b,a
+                    : String.fromCharCode(97 + i);  // a,b,c,d,e,f,g,h
+                  return (
+                    <div key={`right-${i}`} style={{
+                      gridColumn: 10,
+                      gridRow: i + 2,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}>
+                      {file}
+                    </div>
+                  );
+                })}
+
+                {/* Bottom rank numbers */}
+                {Array.from({length: 8}, (_, i) => {
+                  const rank = trainingMode && openingDatabases[trainingMode]?.color === 'black' ? i + 1 : 8 - i;
+                  return (
+                    <div key={`bottom-${i}`} style={{
+                      gridColumn: i + 2,
+                      gridRow: 10,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}>
+                      {rank}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </div>
@@ -772,11 +1063,26 @@ const ChessTrainingApp = () => {
                 borderRadius: '12px',
                 padding: '20px',
                 fontWeight: '600',
-                backgroundColor: feedback.includes('✓') ? '#dcfce7' : '#fef2f2',
-                color: feedback.includes('✓') ? '#166534' : '#991b1b',
-                border: feedback.includes('✓') ? '2px solid #22c55e' : '2px solid #ef4444'
+                backgroundColor: feedback.includes('✓') ? '#dcfce7' : feedback.includes('✗') ? '#fef2f2' : '#f0f9ff',
+                color: feedback.includes('✓') ? '#166534' : feedback.includes('✗') ? '#991b1b' : '#1e40af',
+                border: feedback.includes('✓') ? '2px solid #22c55e' : feedback.includes('✗') ? '2px solid #ef4444' : '2px solid #3b82f6',
+                transform: feedback.includes('✗') ? 'scale(1.02)' : 'scale(1)',
+                transition: 'all 0.3s ease'
               }}>
-                <p>{feedback}</p>
+                <p style={{ margin: 0 }}>{feedback}</p>
+                {showHint && (
+                  <p style={{
+                    margin: '10px 0 0 0',
+                    fontSize: '0.9rem',
+                    color: '#b45309',
+                    backgroundColor: '#fef3c7',
+                    padding: '8px 12px',
+                    borderRadius: '6px',
+                    border: '1px solid #fbbf24'
+                  }}>
+                    💡 Hint: Move from {showHint.notation.split('-')[0]} to {showHint.notation.split('-')[1]}
+                  </p>
+                )}
               </div>
             )}
 
