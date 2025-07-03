@@ -7,18 +7,39 @@ const ChessTrainingApp = () => {
     // Add mobile viewport and chess font optimization
     const style = document.createElement('style');
     style.textContent = `
-      @import url('https://fonts.googleapis.com/css2?family=Noto+Color+Emoji&display=swap');
-
       .chess-piece {
-        font-family: 'Chess Merida', 'Chess Alpha', 'Segoe UI Symbol', 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', monospace !important;
-        font-feature-settings: "liga" 1, "calt" 1;
-        -webkit-font-smoothing: antialiased;
-        -moz-osx-font-smoothing: grayscale;
-        font-variant-emoji: text;
-        text-rendering: optimizeLegibility;
+        font-family: 'Arial Unicode MS', 'Lucida Grande', 'Segoe UI Symbol', 'DejaVu Sans', Arial, sans-serif !important;
+        font-feature-settings: normal !important;
+        -webkit-font-smoothing: antialiased !important;
+        -moz-osx-font-smoothing: grayscale !important;
+        font-variant-emoji: text !important;
+        text-rendering: optimizeLegibility !important;
         font-size: inherit !important;
         line-height: 1 !important;
         vertical-align: baseline !important;
+        font-weight: normal !important;
+        font-style: normal !important;
+        color: inherit !important;
+        -webkit-text-fill-color: inherit !important;
+        -webkit-text-stroke: 0 !important;
+        -webkit-font-feature-settings: normal !important;
+        font-variant: normal !important;
+      }
+
+      .chess-piece-white {
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+        -webkit-text-stroke: 2px #000000 !important;
+        text-shadow: 0px 0px 0px transparent !important;
+        filter: none !important;
+      }
+
+      .chess-piece-black {
+        color: #000000 !important;
+        -webkit-text-fill-color: #000000 !important;
+        -webkit-text-stroke: 0px !important;
+        text-shadow: none !important;
+        filter: none !important;
       }
 
       body {
@@ -157,7 +178,7 @@ const ChessTrainingApp = () => {
     }
   };
 
-  // Piece Unicode symbols - using solid symbols for consistency
+  // Piece Unicode symbols - using filled symbols for both colors, differentiated by CSS styling
   const pieceSymbols = {
     'K': '♚', 'Q': '♛', 'R': '♜', 'B': '♝', 'N': '♞', 'P': '♟',
     'k': '♚', 'q': '♛', 'r': '♜', 'b': '♝', 'n': '♞', 'p': '♟'
@@ -1135,13 +1156,6 @@ const ChessTrainingApp = () => {
                         backgroundColor = isLightSquare ? '#f0d9b5' : '#b58863'; // Chess.com colors
                       }
 
-                      // Enhanced piece styling - solid pieces with consistent appearance
-                      const pieceColor = isPieceWhite(piece) ? '#ffffff' : '#000000';
-                      const pieceBackgroundColor = isPieceWhite(piece) ? 'rgba(0, 0, 0, 0.1)' : 'rgba(255, 255, 255, 0.1)';
-                      const textShadow = isPieceWhite(piece)
-                        ? '2px 2px 4px rgba(0,0,0,0.9), 0 0 3px rgba(0,0,0,0.8), -1px -1px 0 rgba(0,0,0,0.6), 1px -1px 0 rgba(0,0,0,0.6), -1px 1px 0 rgba(0,0,0,0.6), 1px 1px 0 rgba(0,0,0,0.6)'
-                        : '2px 2px 4px rgba(255,255,255,0.9), 0 0 3px rgba(255,255,255,0.8), -1px -1px 0 rgba(255,255,255,0.6), 1px -1px 0 rgba(255,255,255,0.6), -1px 1px 0 rgba(255,255,255,0.6), 1px 1px 0 rgba(255,255,255,0.6)';
-
                       return (
                         <div
                           key={`${rowIndex}-${colIndex}`}
@@ -1150,7 +1164,7 @@ const ChessTrainingApp = () => {
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            fontSize: isMobile ? '2.8rem' : '3.8rem',
+                            fontSize: isMobile ? '2.2rem' : '2.8rem',
                             cursor: piece ? 'pointer' : 'default',
                             transition: 'background-color 0.15s ease, border 0.15s ease',
                             userSelect: 'none',
@@ -1162,8 +1176,6 @@ const ChessTrainingApp = () => {
                             boxSizing: 'border-box',
                             backgroundColor,
                             border: isSelected ? '2px solid #f39c12' : 'none',
-                            color: pieceColor,
-                            textShadow: piece ? textShadow : 'none',
                             // Position this square at its display coordinates
                             gridColumn: displayCol + 1,
                             gridRow: displayRow + 1,
@@ -1195,11 +1207,8 @@ const ChessTrainingApp = () => {
                         >
                           {piece && !isDragging && (
                             <span
-                              className="chess-piece"
+                              className={`chess-piece ${isPieceWhite(piece) ? 'chess-piece-white' : 'chess-piece-black'}`}
                               style={{
-                                backgroundColor: piece ? pieceBackgroundColor : 'transparent',
-                                borderRadius: '50%',
-                                padding: '2px',
                                 lineHeight: '1',
                                 display: 'inline-block'
                               }}
@@ -1248,7 +1257,7 @@ const ChessTrainingApp = () => {
                     <div style={{
                       position: 'fixed',
                       pointerEvents: 'none',
-                      fontSize: isMobile ? '2.8rem' : '3.8rem',
+                      fontSize: isMobile ? '2.2rem' : '2.8rem',
                       fontWeight: 'bold',
                       zIndex: 1000,
                       left: `${dragOffset.x}px`,
@@ -1256,15 +1265,8 @@ const ChessTrainingApp = () => {
                       transform: 'translate(-50%, -50%)'
                     }}>
                       <span
-                        className="chess-piece"
+                        className={`chess-piece ${isPieceWhite(draggedPiece.piece) ? 'chess-piece-white' : 'chess-piece-black'}`}
                         style={{
-                          color: isPieceWhite(draggedPiece.piece) ? '#ffffff' : '#000000',
-                          textShadow: isPieceWhite(draggedPiece.piece)
-                            ? '2px 2px 4px rgba(0,0,0,0.9), 0 0 3px rgba(0,0,0,0.8), -1px -1px 0 rgba(0,0,0,0.6), 1px -1px 0 rgba(0,0,0,0.6), -1px 1px 0 rgba(0,0,0,0.6), 1px 1px 0 rgba(0,0,0,0.6)'
-                            : '2px 2px 4px rgba(255,255,255,0.9), 0 0 3px rgba(255,255,255,0.8), -1px -1px 0 rgba(255,255,255,0.6), 1px -1px 0 rgba(255,255,255,0.6), -1px 1px 0 rgba(255,255,255,0.6), 1px 1px 0 rgba(255,255,255,0.6)',
-                          backgroundColor: isPieceWhite(draggedPiece.piece) ? 'rgba(0, 0, 0, 0.1)' : 'rgba(255, 255, 255, 0.1)',
-                          borderRadius: '50%',
-                          padding: '2px',
                           lineHeight: '1',
                           display: 'inline-block'
                         }}
