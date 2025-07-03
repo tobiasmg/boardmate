@@ -311,6 +311,7 @@ const ChessTrainingApp = () => {
     console.log('Current move history:', currentMoveHistory);
     console.log('Move key for lookup:', `"${moveKey}"`);
     console.log('Expected moves:', expectedMoves);
+    console.log('Available keys in database:', Object.keys(opening.moves));
     console.log('Move is correct?', expectedMoves.includes(userMove));
 
     // Clear any existing hints
@@ -344,11 +345,13 @@ const ChessTrainingApp = () => {
         needsReplay: false
       }]);
 
-      setFeedback(`✗ Wrong move! Expected: ${expectedMoves.join(' or ')}. Click "Undo" to try again.`);
+      // Better error handling for empty expected moves
+      const expectedMovesText = expectedMoves.length > 0 ? expectedMoves.join(' or ') : 'No valid moves found';
+      setFeedback(`✗ Wrong move! Expected: ${expectedMovesText}. Click "Undo" to try again.`);
       setScore(prev => ({ correct: prev.correct, total: prev.total + 1 }));
       setNeedsReplay(true);
 
-      // Show hint arrow for the best move
+      // Show hint arrow for the best move only if we have expected moves
       if (expectedMoves.length > 0) {
         const bestMove = expectedMoves[0];
         const [fromSquare, toSquare] = bestMove.split('-');
@@ -364,6 +367,14 @@ const ChessTrainingApp = () => {
           to: { row: toDisplayRow, col: toDisplayCol },
           notation: bestMove
         });
+
+        console.log('Setting hint arrow:', {
+          from: { row: fromDisplayRow, col: fromDisplayCol },
+          to: { row: toDisplayRow, col: toDisplayCol },
+          notation: bestMove
+        });
+      } else {
+        console.log('No expected moves found - cannot show hint arrow');
       }
 
       // Clear feedback after longer delay to give user time to see the hint
@@ -505,6 +516,7 @@ const ChessTrainingApp = () => {
     const freshBoard = getInitialBoard();
     console.log('Starting with fresh board:', freshBoard);
 
+    // Reset all state immediately
     setTrainingMode(mode);
     setGameMode('training');
     setBoard(freshBoard);
@@ -538,11 +550,18 @@ const ChessTrainingApp = () => {
 
           console.log(`Making first move: ${fromSquare} to ${toSquare}`);
 
-          // Use makeMove to handle the first move properly
-          addTimeout(() => {
-            makeMove(fromRow, fromCol, toRow, toCol);
-            setFeedback('Your turn! Play 1...c5 for the Sicilian Defense.');
-          }, 100);
+          // Make the move directly to avoid state timing issues
+          setBoard(currentBoard => {
+            const newBoard = currentBoard.map(row => [...row]);
+            const piece = newBoard[fromRow][fromCol];
+            newBoard[toRow][toCol] = piece;
+            newBoard[fromRow][fromCol] = null;
+            return newBoard;
+          });
+
+          setMoveHistory([`${fromSquare}-${toSquare}`]);
+          setCurrentPlayer('black');
+          setFeedback('Your turn! Play 1...c5 for the Sicilian Defense.');
         }
       }, 1000);
     } else {
@@ -563,6 +582,7 @@ const ChessTrainingApp = () => {
     const freshBoard = getInitialBoard();
     console.log('Resetting board to:', freshBoard);
 
+    // Reset all state at once
     setBoard(freshBoard);
     setMoveHistory([]);
     setSelectedSquare(null);
@@ -573,36 +593,41 @@ const ChessTrainingApp = () => {
     setUndoStack([]);
     setScore({ correct: 0, total: 0 });
 
-    // Wait a moment for state to settle, then restart
-    addTimeout(() => {
-      const opening = openingDatabases[trainingMode];
-      if (opening.color === 'black') {
-        setCurrentPlayer('white');
-        setFeedback('White is making the first move...');
+    // Restart the training mode
+    const opening = openingDatabases[trainingMode];
+    if (opening.color === 'black') {
+      setCurrentPlayer('white');
+      setFeedback('White is making the first move...');
 
-        // Make the first white move automatically after reset
-        addTimeout(() => {
-          const firstMove = opening.moves[""][0]; // Should be "e2-e4"
+      // Make the first white move automatically after reset
+      addTimeout(() => {
+        const firstMove = opening.moves[""][0]; // Should be "e2-e4"
 
-          if (firstMove) {
-            const [fromSquare, toSquare] = firstMove.split('-');
-            const [fromRow, fromCol] = parseSquareName(fromSquare);
-            const [toRow, toCol] = parseSquareName(toSquare);
+        if (firstMove) {
+          const [fromSquare, toSquare] = firstMove.split('-');
+          const [fromRow, fromCol] = parseSquareName(fromSquare);
+          const [toRow, toCol] = parseSquareName(toSquare);
 
-            console.log(`Reset: Making first move ${fromSquare} to ${toSquare}`);
+          console.log(`Reset: Making first move ${fromSquare} to ${toSquare}`);
 
-            // Use makeMove to handle the first move properly
-            addTimeout(() => {
-              makeMove(fromRow, fromCol, toRow, toCol);
-              setFeedback('Your turn! Play 1...c5 for the Sicilian Defense.');
-            }, 100);
-          }
-        }, 1000);
-      } else {
-        setCurrentPlayer('white');
-        setFeedback('Your turn! Make your opening move.');
-      }
-    }, 100); // Small delay to let state reset
+          // Make the move directly without using makeMove to avoid moveHistory issues
+          setBoard(currentBoard => {
+            const newBoard = currentBoard.map(row => [...row]);
+            const piece = newBoard[fromRow][fromCol];
+            newBoard[toRow][toCol] = piece;
+            newBoard[fromRow][fromCol] = null;
+            return newBoard;
+          });
+
+          setMoveHistory([`${fromSquare}-${toSquare}`]);
+          setCurrentPlayer('black');
+          setFeedback('Your turn! Play 1...c5 for the Sicilian Defense.');
+        }
+      }, 1000);
+    } else {
+      setCurrentPlayer('white');
+      setFeedback('Your turn! Make your opening move.');
+    }
   };
 
   const backToMenu = () => {
