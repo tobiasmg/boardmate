@@ -2,6 +2,47 @@ import React, { useState, useEffect, useRef } from 'react';
 import { ChevronLeft, RotateCcw, Play, BookOpen, Target, Undo2 } from 'lucide-react';
 
 const ChessTrainingApp = () => {
+  // Add mobile-specific CSS
+  useEffect(() => {
+    // Add mobile viewport and chess font optimization
+    const style = document.createElement('style');
+    style.textContent = `
+      @import url('https://fonts.googleapis.com/css2?family=Noto+Color+Emoji&display=swap');
+
+      .chess-piece {
+        font-family: 'Noto Color Emoji', 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', monospace !important;
+        font-feature-settings: "liga" 1, "calt" 1;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+      }
+
+      body {
+        -webkit-touch-callout: none;
+        -webkit-user-select: none;
+        -khtml-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
+        user-select: none;
+        -webkit-tap-highlight-color: transparent;
+        overflow-x: hidden;
+      }
+    `;
+    document.head.appendChild(style);
+
+    // Ensure viewport is set for mobile
+    let viewport = document.querySelector('meta[name="viewport"]');
+    if (!viewport) {
+      viewport = document.createElement('meta');
+      viewport.name = 'viewport';
+      viewport.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no';
+      document.head.appendChild(viewport);
+    }
+
+    return () => {
+      document.head.removeChild(style);
+    };
+  }, []);
+
   // Initial board setup - function to always get fresh copy
   const getInitialBoard = () => [
     ['r', 'n', 'b', 'q', 'k', 'b', 'n', 'r'],
@@ -111,7 +152,7 @@ const ChessTrainingApp = () => {
     }
   };
 
-  // Piece Unicode symbols (chess.com style)
+  // Piece Unicode symbols (chess.com style) with mobile-friendly fallbacks
   const pieceSymbols = {
     'K': '♔', 'Q': '♕', 'R': '♖', 'B': '♗', 'N': '♘', 'P': '♙',
     'k': '♚', 'q': '♛', 'r': '♜', 'b': '♝', 'n': '♞', 'p': '♟'
@@ -412,6 +453,9 @@ const ChessTrainingApp = () => {
 
     e.preventDefault();
     const rect = e.currentTarget.getBoundingClientRect();
+    const clientX = e.clientX || (e.touches && e.touches[0]?.clientX) || 0;
+    const clientY = e.clientY || (e.touches && e.touches[0]?.clientY) || 0;
+
     setDraggedPiece({
       piece,
       fromRow: row,
@@ -420,15 +464,26 @@ const ChessTrainingApp = () => {
       displayCol
     });
     setDragOffset({
-      x: e.clientX - rect.left - rect.width / 2,
-      y: e.clientY - rect.top - rect.height / 2
+      x: clientX - rect.left - rect.width / 2,
+      y: clientY - rect.top - rect.height / 2
     });
     setSelectedSquare([row, col]);
+  };
+
+  const handleTouchStart = (e, displayRow, displayCol) => {
+    e.preventDefault(); // Prevent scrolling
+    handleMouseDown(e, displayRow, displayCol);
   };
 
   const handleMouseMove = (e) => {
     if (!draggedPiece) return;
     e.preventDefault();
+  };
+
+  const handleTouchMove = (e) => {
+    if (!draggedPiece) return;
+    e.preventDefault(); // Prevent scrolling
+    handleMouseMove(e);
   };
 
   const handleMouseUp = (e, targetDisplayRow, targetDisplayCol) => {
@@ -454,6 +509,32 @@ const ChessTrainingApp = () => {
 
     setDraggedPiece(null);
     setSelectedSquare(null);
+  };
+
+  const handleTouchEnd = (e, targetDisplayRow, targetDisplayCol) => {
+    if (!draggedPiece) return;
+    e.preventDefault();
+
+    // For touch, we need to find what element we're over
+    if (e.changedTouches && e.changedTouches[0]) {
+      const touch = e.changedTouches[0];
+      const elementBelow = document.elementFromPoint(touch.clientX, touch.clientY);
+
+      // Find the chess square element
+      let targetElement = elementBelow;
+      while (targetElement && !targetElement.dataset?.square) {
+        targetElement = targetElement.parentElement;
+      }
+
+      if (targetElement && targetElement.dataset?.square) {
+        const [touchRow, touchCol] = targetElement.dataset.square.split(',').map(Number);
+        handleMouseUp(e, touchRow, touchCol);
+        return;
+      }
+    }
+
+    // Fallback to provided coordinates
+    handleMouseUp(e, targetDisplayRow, targetDisplayCol);
   };
 
   const handleSquareClick = (displayRow, displayCol) => {
@@ -505,6 +586,11 @@ const ChessTrainingApp = () => {
         setSelectedSquare([row, col]);
       }
     }
+  };
+
+  const handleSquareTouch = (e, displayRow, displayCol) => {
+    e.preventDefault(); // Prevent double-firing of click events
+    handleSquareClick(displayRow, displayCol);
   };
 
   const startTraining = (mode) => {
@@ -644,9 +730,21 @@ const ChessTrainingApp = () => {
   useEffect(() => {
     const handleGlobalMouseMove = (e) => {
       if (draggedPiece) {
+        const clientX = e.clientX || (e.touches && e.touches[0]?.clientX) || 0;
+        const clientY = e.clientY || (e.touches && e.touches[0]?.clientY) || 0;
         setDragOffset({
-          x: e.clientX,
-          y: e.clientY
+          x: clientX,
+          y: clientY
+        });
+      }
+    };
+
+    const handleGlobalTouchMove = (e) => {
+      if (draggedPiece && e.touches && e.touches[0]) {
+        e.preventDefault(); // Prevent scrolling while dragging
+        setDragOffset({
+          x: e.touches[0].clientX,
+          y: e.touches[0].clientY
         });
       }
     };
@@ -658,12 +756,26 @@ const ChessTrainingApp = () => {
       }
     };
 
+    const handleGlobalTouchEnd = () => {
+      if (draggedPiece) {
+        setDraggedPiece(null);
+        setSelectedSquare(null);
+      }
+    };
+
+    // Mouse events
     document.addEventListener('mousemove', handleGlobalMouseMove);
     document.addEventListener('mouseup', handleGlobalMouseUp);
+
+    // Touch events
+    document.addEventListener('touchmove', handleGlobalTouchMove, { passive: false });
+    document.addEventListener('touchend', handleGlobalTouchEnd);
 
     return () => {
       document.removeEventListener('mousemove', handleGlobalMouseMove);
       document.removeEventListener('mouseup', handleGlobalMouseUp);
+      document.removeEventListener('touchmove', handleGlobalTouchMove);
+      document.removeEventListener('touchend', handleGlobalTouchEnd);
     };
   }, [draggedPiece]);
 
@@ -1006,7 +1118,7 @@ const ChessTrainingApp = () => {
                 })}
 
                 {/* The chess board */}
-                <div style={styles.board} onMouseMove={handleMouseMove}>
+                <div style={styles.board} onMouseMove={handleMouseMove} onTouchMove={handleTouchMove}>
                   {board.flatMap((row, rowIndex) =>
                     row.map((piece, colIndex) => {
                       // Get display coordinates (potentially flipped)
@@ -1023,15 +1135,16 @@ const ChessTrainingApp = () => {
                         backgroundColor = isLightSquare ? '#f0d9b5' : '#b58863'; // Chess.com colors
                       }
 
-                      // Enhanced piece styling - fully white pieces
-                      const pieceColor = isPieceWhite(piece) ? '#ffffff' : '#2c2c2c';
+                      // Enhanced piece styling - mobile-friendly with better contrast
+                      const pieceColor = isPieceWhite(piece) ? '#ffffff' : '#000000';
                       const textShadow = isPieceWhite(piece)
-                        ? '2px 2px 4px rgba(0,0,0,0.8), 0 0 2px rgba(0,0,0,0.5)'
-                        : '1px 1px 2px rgba(255,255,255,0.4), 0 0 2px rgba(255,255,255,0.2)';
+                        ? '2px 2px 4px rgba(0,0,0,0.9), 0 0 3px rgba(0,0,0,0.7), 1px 1px 0 rgba(0,0,0,0.8)'
+                        : '2px 2px 4px rgba(255,255,255,0.9), 0 0 3px rgba(255,255,255,0.7), 1px 1px 0 rgba(255,255,255,0.8)';
 
                       return (
                         <div
                           key={`${rowIndex}-${colIndex}`}
+                          data-square={`${displayRow},${displayCol}`}
                           style={{
                             display: 'flex',
                             alignItems: 'center',
@@ -1053,11 +1166,21 @@ const ChessTrainingApp = () => {
                             // Position this square at its display coordinates
                             gridColumn: displayCol + 1,
                             gridRow: displayRow + 1,
-                            opacity: isDragging ? 0.3 : 1
+                            opacity: isDragging ? 0.3 : 1,
+                            // Mobile optimization
+                            WebkitTouchCallout: 'none',
+                            WebkitUserSelect: 'none',
+                            touchAction: 'none'
                           }}
                           onMouseDown={(e) => handleMouseDown(e, displayRow, displayCol)}
                           onMouseUp={(e) => handleMouseUp(e, displayRow, displayCol)}
+                          onTouchStart={(e) => handleTouchStart(e, displayRow, displayCol)}
+                          onTouchEnd={(e) => handleTouchEnd(e, displayRow, displayCol)}
                           onClick={() => handleSquareClick(displayRow, displayCol)}
+                          onTouchCancel={() => {
+                            setDraggedPiece(null);
+                            setSelectedSquare(null);
+                          }}
                           onMouseEnter={(e) => {
                             if (!isSelected && !draggedPiece) {
                               e.target.style.backgroundColor = isLightSquare ? '#ead5aa' : '#a67c52';
@@ -1069,7 +1192,9 @@ const ChessTrainingApp = () => {
                             }
                           }}
                         >
-                          {piece && !isDragging && pieceSymbols[piece]}
+                          {piece && !isDragging && (
+                            <span className="chess-piece">{pieceSymbols[piece]}</span>
+                          )}
                         </div>
                       );
                     })
@@ -1113,16 +1238,16 @@ const ChessTrainingApp = () => {
                       pointerEvents: 'none',
                       fontSize: isMobile ? '2.8rem' : '3.8rem',
                       fontWeight: 'bold',
-                      color: isPieceWhite(draggedPiece.piece) ? '#ffffff' : '#2c2c2c',
+                      color: isPieceWhite(draggedPiece.piece) ? '#ffffff' : '#000000',
                       textShadow: isPieceWhite(draggedPiece.piece)
-                        ? '2px 2px 4px rgba(0,0,0,0.8), 0 0 2px rgba(0,0,0,0.5)'
-                        : '1px 1px 2px rgba(255,255,255,0.4), 0 0 2px rgba(255,255,255,0.2)',
+                        ? '2px 2px 4px rgba(0,0,0,0.9), 0 0 3px rgba(0,0,0,0.7), 1px 1px 0 rgba(0,0,0,0.8)'
+                        : '2px 2px 4px rgba(255,255,255,0.9), 0 0 3px rgba(255,255,255,0.7), 1px 1px 0 rgba(255,255,255,0.8)',
                       zIndex: 1000,
                       left: `${dragOffset.x}px`,
                       top: `${dragOffset.y}px`,
                       transform: 'translate(-50%, -50%)'
                     }}>
-                      {pieceSymbols[draggedPiece.piece]}
+                      <span className="chess-piece">{pieceSymbols[draggedPiece.piece]}</span>
                     </div>
                   )}
                 </div>
