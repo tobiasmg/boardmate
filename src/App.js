@@ -27,19 +27,11 @@ const ChessTrainingApp = () => {
       }
 
       .chess-piece-white {
-        color: #ffffff !important;
-        -webkit-text-fill-color: #ffffff !important;
-        -webkit-text-stroke: 1px #000000 !important;
-        text-shadow: 1px 1px 2px rgba(0,0,0,0.5) !important;
-        filter: none !important;
+        /* SVG styling handled in component */
       }
 
       .chess-piece-black {
-        color: #000000 !important;
-        -webkit-text-fill-color: #000000 !important;
-        -webkit-text-stroke: 0px !important;
-        text-shadow: none !important;
-        filter: none !important;
+        /* SVG styling handled in component */
       }
 
       body {
@@ -178,11 +170,65 @@ const ChessTrainingApp = () => {
     }
   };
 
-  // Piece Unicode symbols - using proper symbols: outline for white, filled for black
-  const pieceSymbols = {
-    'K': '♔', 'Q': '♕', 'R': '♖', 'B': '♗', 'N': '♘', 'P': '♙',
-    'k': '♚', 'q': '♛', 'r': '♜', 'b': '♝', 'n': '♞', 'p': '♟'
+  // SVG piece components - using inline SVG for consistent rendering
+  const getPieceSVG = (piece) => {
+    const isWhite = isPieceWhite(piece);
+    const pieceType = piece.toLowerCase();
+
+    const kingSVG = (
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2048 2048" width="100%" height="100%">
+        <path fill={isWhite ? "#f9f9f9" : "#101010"} d="m501.6 1811 48.4-354.4-260-269.2s-166.4-288.2 29.9-481C582.2 448.7 826 727.2 826 727.2l195.6-165.7 184 165.7s216.4-232.5 430.4-76c214 156.5 255.4 317.6 117.4 531.6-138.1 214-250.9 280.7-250.9 280.7L1558 1811z"/>
+        <path fill={isWhite ? "#101010" : "#f9f9f9"} d="M977 298v-95h94v95h107v95h-107v153q-48-16-94 0V393H870v-95zm47 314q-47 0-136 121-31-36-50-55 93-140 186-140 92 0 186 140-20 19-50 55-90-121-136-121zm-447 907-26 156 145-84zm410-206q-1-147-36.5-274.5T870 845q-45-88-131.5-153T570 627q-103 0-208 93T257 949q0 109 86.5 236T546 1408q212-88 441-95zm37 530H448l61-365q-325-280-326-535-1-159 125-274.5T575 553q78 0 158.5 47T876 719q61 74 98.5 164.5T1024 1034q12-60 49-150.5t99-164.5q61-72 142-119t159-47q140 0 266 115.5T1865 943q-2 255-326 535l61 365zm0-74h489l-50-298q-216-84-439-84t-439 84l-50 298zm447-250 26 156-145-84zm-410-206q229 7 441 95 115-96 202-223t87-236q0-136-105.5-229T1478 627q-83 0-169.5 65T1178 845q-46 66-81.5 193.5T1061 1313zm-176 233 141-84 137 86-141 84z"/>
+      </svg>
+    );
+
+    const queenSVG = (
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2048 2048" width="100%" height="100%">
+        <path fill={isWhite ? "#f9f9f9" : "#101010"} d="m508.5 1815.6 48.4-356.7-216.3-554.6-135.8-20.7-16.1-126.5 112.7-43.8 78.3 73.7-18.4 99 246.2 197.8 112.8-568.3L635 428l78.3-108 112.8 43.7-23 161 223.2 474 244-490-66.8-105.9 92-92 105.9 73.6L1337 534l103.5 529.2 260-161-16-142.7 131-46 57.6 131.1-207 103.6-175 529.2 48.4 308.4z"/>
+        <path fill={isWhite ? "#101010" : "#f9f9f9"} d="M1024 1769h478q-53-130-43-280-100-39-213-67.5t-222-28.5q-110 0-223 28.5T589 1489q9 150-43 280zm0-450q111 0 223.5 26.5T1468 1413q17-105 60.5-212.5T1634 988l-220 155-123-601-267 555-267-555-123 601-220-155q61 105 104.5 212.5T580 1413q108-41 220.5-67.5T1024 1319zm0 524H441q114-231 57.5-456.5T296 937q-12 2-19 2-54 0-92.5-38.5T146 808t38.5-92.5T277 677t92.5 38.5T408 808q0 20-6 38-4 14-15 33l196 139 100-486q-64-31-72-103-5-44 29-91t88-53q54-5 96 29t48 88q7 68-46 114l198 412 198-412q-54-46-46-114 6-54 48-88t96-29q54 6 87.5 53t29.5 91q-9 72-72 103l100 486 196-139q-12-19-15-33-6-18-6-38 0-54 38.5-92.5T1771 677t92.5 38.5T1902 808t-38.5 92.5T1771 939q-7 0-19-2-147 224-203 449.5t58 456.5zM276 746q-62 0-62 62t62 62q63 0 63-62t-63-62zm466-394q-62 0-62 62t62 62 62-62-62-62zM590 1519l119 72-134 86q19-86 15-158zm1182-773q-63 0-63 62t63 62q62 0 62-62t-62-62zm-466-394q-62 0-62 62t62 62 62-62-62-62zm152 1167-119 72 134 86q-20-86-15-158zm-573 47 139-83 139 86-139 84z"/>
+      </svg>
+    );
+
+    const rookSVG = (
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2048 2048" width="100%" height="100%">
+        <path fill={isWhite ? "#f9f9f9" : "#101010"} d="m435 1804 16-212 152-115 51-688-148-115-7-276 210-2 4 138 198 2 7-140 212-3 14 145 193-4 5-138h204l-7 285-145 106 42 693 172 124 19 207z"/>
+        <path fill={isWhite ? "#101010" : "#f9f9f9"} d="M1024 1501H643l5-74h752l5 74zm0-661H692l5-74h654l5 74zm0 1003H383l29-264 159-118 50-659-149-107-17-341h289v147h137V354h286v147h137V354h289l-17 341-149 107 50 659 159 118 29 264zm0-74h557l-15-149-161-119-54-735 152-109 13-230h-138v148h-285V427H955v148H670V427H532l13 230 152 109-54 735-161 119-15 149z"/>
+      </svg>
+    );
+
+    const bishopSVG = (
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2048 2048" width="100%" height="100%">
+        <path fill={isWhite ? "#f9f9f9" : "#101010"} d="m948 366 1-139 148-7 1 147zM564 860c114-267 456-443 456-443s392 176 476 502c-9 209-183 332-183 332l27 221-653 6 46-233s-230-171-169-385zm-101 790c175 6 355 23 425-142h92s0 190-88 246c-163 103-625 38-625 38s-15-146 196-142zm631 37-36-185 102 5s22 153 315 131c381-17 318 153 318 153l-483 5z"/>
+        <path fill={isWhite ? "#101010" : "#f9f9f9"} d="M1024 356q66 0 64-66 1-55-64-55-66 0-64 55-3 66 64 66zm0 1204q0 114-101 199t-223 84H205q0-117 65-179t142-62h250q51 0 88-7t71-60l10-16h76q-7 21-3 13-45 105-109 125t-146 19H409q-52 0-86 40t-34 53h424q66 0 159-65t93-185H624q67-116 72-229-114-119-162-223t-6-224q33-96 118-189t312-247q-17-11-46-36t-29-79q0-58 41-96t100-38q58 0 100 38t41 96q0 54-29 79t-46 36q226 153 311 247t119 189q42 119-6 224t-162 223q4 113 72 229h-341q0 120 93 185t159 65h424q0-13-34-53t-86-40h-240q-83 0-146-19t-109-125q4 8-3-13h76l10 16q33 53 70 60t89 7h250q76 0 142 62t65 179h-495q-123 0-223-84t-101-199zm0-114h283q-28-84-29-154-120-41-254-38-135-3-254 38-2 70-29 154zm0-267q159-1 285 42 189-180 142-346-60-193-427-431-368 238-427 431-48 166 142 346 125-43 285-42zm-47-361V714h94v104h95v89h-95v165h-94V907h-95v-89z"/>
+      </svg>
+    );
+
+    const knightSVG = (
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2048 2048" width="100%" height="100%">
+        <path fill={isWhite ? "#f9f9f9" : "#101010"} d="m352 861 787-569 94 148s336 103 398 388c63 286 51 974 51 974l-1088 9s-37-290 184-460c221-171 221-212 221-212s-226-71-295-16-117 138-117 138l-129-67 74-85-88-97-94 56z"/>
+        <path fill={isWhite ? "#101010" : "#f9f9f9"} d="m1151 178-115 154c-74 50-147 98-220 144-73 45-112 81-116 107L304 846l12 297 122-86 51 50-115 82 217 121 56-102c37-68 135-88 292-60l-55 85c-25 37-63 60-115 71a608 608 0 0 0-183 238c-32 82-45 182-39 301h1242c-23-55-42-118-57-190-15-73-17-152-5-237 29-239 13-440-47-603-61-164-205-303-433-418l-96-217zm-17 145 59 133a664 664 0 0 1 262 188c55 72 100 150 134 234 27 97 40 181 41 253 0 71-3 140-9 205-7 65-11 131-13 199-2 67 9 145 32 234H621c-4-84 12-158 48-223s85-124 146-177c78-22 129-56 152-102s53-90 90-131c13-10 27-15 38-15 10-1 21 0 33-2 52-7 95-36 129-85 33-49 51-104 52-165l-19-67c-37 159-99 245-188 257l-45 6c-16 1-33 10-52 26-41-25-87-35-138-31-74 6-129 15-165 27l-108 73-39 45-47-28 78-65-138-144-64 41-4-125 366-241c15-34 58-74 131-120l208-131 49-69zM960 564c-6 0-12 2-18 7L826 671l212 2c23 0 17-21-16-63-24-31-44-46-62-46zM502 868l-33 4-33 56 57 26 46-55-37-31z"/>
+      </svg>
+    );
+
+    const pawnSVG = (
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2048 2048" width="100%" height="100%">
+        <path fill={isWhite ? "#f9f9f9" : "#101010"} d="m734 981 196-193s-189-82-79-288c79-149 303-114 361 50 63 179-113 240-113 240l226 197Zm-235 799s-8-107 50-154c196-173 338-386 371-599l210 2c33 206 182 447 321 561 101 59 99 199 99 199z"/>
+        <path fill={isWhite ? "#101010" : "#f9f9f9"} d="M520 1769h1008q8-97-132-182-132-101-196-239t-80-309H928q-15 170-79 309t-197 239q-141 85-132 182zm504 74H446v-74q-4-80 42-137t125-108q117-91 172-217t78-268H576l284-239q-86-74-86-188 0-103 73-177t177-74q103 0 177 74t73 177q0 114-86 188l284 239h-287q23 141 78 268t172 217q79 51 125 108t42 137v74zM756 974h536l-225-191q134-31 134-171 0-76-52-126t-125-51q-73 0-125 51t-52 126q0 140 134 171z"/>
+      </svg>
+    );
+
+    // Return the appropriate SVG based on piece type
+    switch (pieceType) {
+      case 'k': return kingSVG;
+      case 'q': return queenSVG;
+      case 'r': return rookSVG;     // ← Now returns rook instead of king
+      case 'b': return bishopSVG;   // ← Now returns bishop instead of king
+      case 'n': return knightSVG;   // ← Now returns knight instead of king
+      case 'p': return pawnSVG;     // ← Now returns pawn instead of king
+      default: return kingSVG;
+    }
   };
+
 
   // Helper function to get display coordinates (flipped for black)
   const getDisplayCoordinates = (row, col) => {
@@ -1206,15 +1252,24 @@ const ChessTrainingApp = () => {
                           }}
                         >
                           {piece && !isDragging && (
-                            <span
+                            <div
                               className={`chess-piece ${isPieceWhite(piece) ? 'chess-piece-white' : 'chess-piece-black'}`}
                               style={{
-                                lineHeight: '1',
-                                display: 'inline-block'
+                                width: '80%',
+                                height: '80%',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center'
                               }}
                             >
-                              {pieceSymbols[piece]}
-                            </span>
+                              {(() => {
+                                console.log('Rendering piece:', piece, 'at', rowIndex, colIndex);
+                                console.log('About to call getPieceSVG...');
+                                const result = getPieceSVG(piece);
+                                console.log('getPieceSVG returned:', result);
+                                return result;
+                              })()}
+                            </div>
                           )}
                         </div>
                       );
@@ -1257,22 +1312,25 @@ const ChessTrainingApp = () => {
                     <div style={{
                       position: 'fixed',
                       pointerEvents: 'none',
-                      fontSize: isMobile ? '2.2rem' : '2.8rem',
-                      fontWeight: 'bold',
+                      width: isMobile ? '44px' : '60px',
+                      height: isMobile ? '44px' : '60px',
                       zIndex: 1000,
                       left: `${dragOffset.x}px`,
                       top: `${dragOffset.y}px`,
                       transform: 'translate(-50%, -50%)'
                     }}>
-                      <span
+                      <div
                         className={`chess-piece ${isPieceWhite(draggedPiece.piece) ? 'chess-piece-white' : 'chess-piece-black'}`}
                         style={{
-                          lineHeight: '1',
-                          display: 'inline-block'
+                          width: '100%',
+                          height: '100%',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
                         }}
                       >
-                        {pieceSymbols[draggedPiece.piece]}
-                      </span>
+                        {getPieceSVG(draggedPiece.piece)}
+                      </div>
                     </div>
                   )}
                 </div>
