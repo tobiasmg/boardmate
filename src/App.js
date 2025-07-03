@@ -29,20 +29,8 @@ const ChessTrainingApp = () => {
       .chess-piece-white {
         color: #ffffff !important;
         -webkit-text-fill-color: #ffffff !important;
-        -webkit-text-stroke: 0px !important;
-        text-shadow:
-          -1px -1px 0 #000000,
-          1px -1px 0 #000000,
-          -1px 1px 0 #000000,
-          1px 1px 0 #000000,
-          0px -1px 0 #000000,
-          0px 1px 0 #000000,
-          -1px 0px 0 #000000,
-          1px 0px 0 #000000,
-          -2px -2px 0 #000000,
-          2px -2px 0 #000000,
-          -2px 2px 0 #000000,
-          2px 2px 0 #000000 !important;
+        -webkit-text-stroke: 1px #000000 !important;
+        text-shadow: 1px 1px 2px rgba(0,0,0,0.5) !important;
         filter: none !important;
       }
 
@@ -190,9 +178,9 @@ const ChessTrainingApp = () => {
     }
   };
 
-  // Piece Unicode symbols - using filled symbols for both colors, styled differently with CSS
+  // Piece Unicode symbols - using proper symbols: outline for white, filled for black
   const pieceSymbols = {
-    'K': '♚', 'Q': '♛', 'R': '♜', 'B': '♝', 'N': '♞', 'P': '♟',
+    'K': '♔', 'Q': '♕', 'R': '♖', 'B': '♗', 'N': '♘', 'P': '♙',
     'k': '♚', 'q': '♛', 'r': '♜', 'b': '♝', 'n': '♞', 'p': '♟'
   };
 
