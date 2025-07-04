@@ -88,8 +88,11 @@ const ChessTrainingApp = () => {
   const [selectedSquare, setSelectedSquare] = useState(null);
   const [currentPlayer, setCurrentPlayer] = useState('white');
   const [moveHistory, setMoveHistory] = useState([]);
+  const [lastMove, setLastMove] = useState(null); // Track last move for highlighting
+  const [moveCounter, setMoveCounter] = useState(0); // Add counter to ensure unique moves
   const [gameMode, setGameMode] = useState('menu');
   const [trainingMode, setTrainingMode] = useState(null);
+  const [selectedVariation, setSelectedVariation] = useState(null);
   const [feedback, setFeedback] = useState('');
   const [score, setScore] = useState({ correct: 0, total: 0 });
   const [draggedPiece, setDraggedPiece] = useState(null);
@@ -117,55 +120,386 @@ const ChessTrainingApp = () => {
     return timeoutId;
   };
 
-  // Opening databases
+  // Opening databases with all variations
   const openingDatabases = {
     sicilianDragon: {
       name: "Sicilian Defence - Accelerated Dragon",
       color: "black",
-      moves: {
-        "": ["e2-e4"],
-        "e2-e4": ["c7-c5"],
-        "e2-e4,c7-c5": ["g1-f3"],
-        "e2-e4,c7-c5,g1-f3": ["g7-g6"],
-        "e2-e4,c7-c5,g1-f3,g7-g6": ["d2-d4"],
-        "e2-e4,c7-c5,g1-f3,g7-g6,d2-d4": ["c5-d4"],
-        "e2-e4,c7-c5,g1-f3,g7-g6,d2-d4,c5-d4": ["f3-d4"],
-        "e2-e4,c7-c5,g1-f3,g7-g6,d2-d4,c5-d4,f3-d4": ["f8-g7"],
-        "e2-e4,c7-c5,g1-f3,g7-g6,d2-d4,c5-d4,f3-d4,f8-g7": ["c2-c4", "b1-c3", "f2-f3"],
-        "e2-e4,c7-c5,g1-f3,g7-g6,d2-d4,c5-d4,f3-d4,f8-g7,c2-c4": ["b8-c6"],
-        "e2-e4,c7-c5,g1-f3,g7-g6,d2-d4,c5-d4,f3-d4,f8-g7,b1-c3": ["b8-c6"],
+      variations: {
+        mainLine: {
+          name: "Main Line (Modern Variation)",
+          moves: {
+            "": ["e2-e4"],
+            "e2-e4": ["c7-c5"],
+            "e2-e4,c7-c5": ["g1-f3"],
+            "e2-e4,c7-c5,g1-f3": ["b8-c6"],
+            "e2-e4,c7-c5,g1-f3,b8-c6": ["d2-d4"],
+            "e2-e4,c7-c5,g1-f3,b8-c6,d2-d4": ["c5-d4"],
+            "e2-e4,c7-c5,g1-f3,b8-c6,d2-d4,c5-d4": ["f3-d4"],
+            "e2-e4,c7-c5,g1-f3,b8-c6,d2-d4,c5-d4,f3-d4": ["g7-g6"],
+            "e2-e4,c7-c5,g1-f3,b8-c6,d2-d4,c5-d4,f3-d4,g7-g6": ["b1-c3"],
+            "e2-e4,c7-c5,g1-f3,b8-c6,d2-d4,c5-d4,f3-d4,g7-g6,b1-c3": ["f8-g7"],
+            "e2-e4,c7-c5,g1-f3,b8-c6,d2-d4,c5-d4,f3-d4,g7-g6,b1-c3,f8-g7": ["c1-e3"],
+            "e2-e4,c7-c5,g1-f3,b8-c6,d2-d4,c5-d4,f3-d4,g7-g6,b1-c3,f8-g7,c1-e3": ["g8-f6"],
+            "e2-e4,c7-c5,g1-f3,b8-c6,d2-d4,c5-d4,f3-d4,g7-g6,b1-c3,f8-g7,c1-e3,g8-f6": ["f1-c4"],
+            "e2-e4,c7-c5,g1-f3,b8-c6,d2-d4,c5-d4,f3-d4,g7-g6,b1-c3,f8-g7,c1-e3,g8-f6,f1-c4": ["e8-g8"],
+            "e2-e4,c7-c5,g1-f3,b8-c6,d2-d4,c5-d4,f3-d4,g7-g6,b1-c3,f8-g7,c1-e3,g8-f6,f1-c4,e8-g8": ["c4-b3"],
+            "e2-e4,c7-c5,g1-f3,b8-c6,d2-d4,c5-d4,f3-d4,g7-g6,b1-c3,f8-g7,c1-e3,g8-f6,f1-c4,e8-g8,c4-b3": ["d7-d6"],
+            "e2-e4,c7-c5,g1-f3,b8-c6,d2-d4,c5-d4,f3-d4,g7-g6,b1-c3,f8-g7,c1-e3,g8-f6,f1-c4,e8-g8,c4-b3,d7-d6": ["f2-f3"],
+            "e2-e4,c7-c5,g1-f3,b8-c6,d2-d4,c5-d4,f3-d4,g7-g6,b1-c3,f8-g7,c1-e3,g8-f6,f1-c4,e8-g8,c4-b3,d7-d6,f2-f3": ["c8-d7"],
+            "e2-e4,c7-c5,g1-f3,b8-c6,d2-d4,c5-d4,f3-d4,g7-g6,b1-c3,f8-g7,c1-e3,g8-f6,f1-c4,e8-g8,c4-b3,d7-d6,f2-f3,c8-d7": ["d1-d2"]
+          }
+        },
+        maroczyBind: {
+          name: "Maroczy Bind",
+          moves: {
+            "": ["e2-e4"],
+            "e2-e4": ["c7-c5"],
+            "e2-e4,c7-c5": ["g1-f3"],
+            "e2-e4,c7-c5,g1-f3": ["b8-c6"],
+            "e2-e4,c7-c5,g1-f3,b8-c6": ["d2-d4"],
+            "e2-e4,c7-c5,g1-f3,b8-c6,d2-d4": ["c5-d4"],
+            "e2-e4,c7-c5,g1-f3,b8-c6,d2-d4,c5-d4": ["f3-d4"],
+            "e2-e4,c7-c5,g1-f3,b8-c6,d2-d4,c5-d4,f3-d4": ["g7-g6"],
+            "e2-e4,c7-c5,g1-f3,b8-c6,d2-d4,c5-d4,f3-d4,g7-g6": ["c2-c4"],
+            "e2-e4,c7-c5,g1-f3,b8-c6,d2-d4,c5-d4,f3-d4,g7-g6,c2-c4": ["f8-g7"],
+            "e2-e4,c7-c5,g1-f3,b8-c6,d2-d4,c5-d4,f3-d4,g7-g6,c2-c4,f8-g7": ["c1-e3"],
+            "e2-e4,c7-c5,g1-f3,b8-c6,d2-d4,c5-d4,f3-d4,g7-g6,c2-c4,f8-g7,c1-e3": ["g8-f6"],
+            "e2-e4,c7-c5,g1-f3,b8-c6,d2-d4,c5-d4,f3-d4,g7-g6,c2-c4,f8-g7,c1-e3,g8-f6": ["b1-c3"],
+            "e2-e4,c7-c5,g1-f3,b8-c6,d2-d4,c5-d4,f3-d4,g7-g6,c2-c4,f8-g7,c1-e3,g8-f6,b1-c3": ["e8-g8"],
+            "e2-e4,c7-c5,g1-f3,b8-c6,d2-d4,c5-d4,f3-d4,g7-g6,c2-c4,f8-g7,c1-e3,g8-f6,b1-c3,e8-g8": ["f1-e2"],
+            "e2-e4,c7-c5,g1-f3,b8-c6,d2-d4,c5-d4,f3-d4,g7-g6,c2-c4,f8-g7,c1-e3,g8-f6,b1-c3,e8-g8,f1-e2": ["d7-d6"],
+            "e2-e4,c7-c5,g1-f3,b8-c6,d2-d4,c5-d4,f3-d4,g7-g6,c2-c4,f8-g7,c1-e3,g8-f6,b1-c3,e8-g8,f1-e2,d7-d6": ["e1-g1"],
+            "e2-e4,c7-c5,g1-f3,b8-c6,d2-d4,c5-d4,f3-d4,g7-g6,c2-c4,f8-g7,c1-e3,g8-f6,b1-c3,e8-g8,f1-e2,d7-d6,e1-g1": ["c8-d7"],
+            "e2-e4,c7-c5,g1-f3,b8-c6,d2-d4,c5-d4,f3-d4,g7-g6,c2-c4,f8-g7,c1-e3,g8-f6,b1-c3,e8-g8,f1-e2,d7-d6,e1-g1,c8-d7": ["a1-c1"]
+          }
+        },
+        exchange: {
+          name: "Exchange Variation",
+          moves: {
+            "": ["e2-e4"],
+            "e2-e4": ["c7-c5"],
+            "e2-e4,c7-c5": ["g1-f3"],
+            "e2-e4,c7-c5,g1-f3": ["b8-c6"],
+            "e2-e4,c7-c5,g1-f3,b8-c6": ["d2-d4"],
+            "e2-e4,c7-c5,g1-f3,b8-c6,d2-d4": ["c5-d4"],
+            "e2-e4,c7-c5,g1-f3,b8-c6,d2-d4,c5-d4": ["f3-d4"],
+            "e2-e4,c7-c5,g1-f3,b8-c6,d2-d4,c5-d4,f3-d4": ["g7-g6"],
+            "e2-e4,c7-c5,g1-f3,b8-c6,d2-d4,c5-d4,f3-d4,g7-g6": ["d4-c6"],
+            "e2-e4,c7-c5,g1-f3,b8-c6,d2-d4,c5-d4,f3-d4,g7-g6,d4-c6": ["b7-c6"],
+            "e2-e4,c7-c5,g1-f3,b8-c6,d2-d4,c5-d4,f3-d4,g7-g6,d4-c6,b7-c6": ["f1-d3"],
+            "e2-e4,c7-c5,g1-f3,b8-c6,d2-d4,c5-d4,f3-d4,g7-g6,d4-c6,b7-c6,f1-d3": ["f8-g7"],
+            "e2-e4,c7-c5,g1-f3,b8-c6,d2-d4,c5-d4,f3-d4,g7-g6,d4-c6,b7-c6,f1-d3,f8-g7": ["e1-g1"],
+            "e2-e4,c7-c5,g1-f3,b8-c6,d2-d4,c5-d4,f3-d4,g7-g6,d4-c6,b7-c6,f1-d3,f8-g7,e1-g1": ["g8-f6"],
+            "e2-e4,c7-c5,g1-f3,b8-c6,d2-d4,c5-d4,f3-d4,g7-g6,d4-c6,b7-c6,f1-d3,f8-g7,e1-g1,g8-f6": ["c2-c4"],
+            "e2-e4,c7-c5,g1-f3,b8-c6,d2-d4,c5-d4,f3-d4,g7-g6,d4-c6,b7-c6,f1-d3,f8-g7,e1-g1,g8-f6,c2-c4": ["e8-g8"],
+            "e2-e4,c7-c5,g1-f3,b8-c6,d2-d4,c5-d4,f3-d4,g7-g6,d4-c6,b7-c6,f1-d3,f8-g7,e1-g1,g8-f6,c2-c4,e8-g8": ["b1-c3"],
+            "e2-e4,c7-c5,g1-f3,b8-c6,d2-d4,c5-d4,f3-d4,g7-g6,d4-c6,b7-c6,f1-d3,f8-g7,e1-g1,g8-f6,c2-c4,e8-g8,b1-c3": ["d7-d6"],
+            "e2-e4,c7-c5,g1-f3,b8-c6,d2-d4,c5-d4,f3-d4,g7-g6,d4-c6,b7-c6,f1-d3,f8-g7,e1-g1,g8-f6,c2-c4,e8-g8,b1-c3,d7-d6": ["d1-e2"]
+          }
+        },
+        be3Variation: {
+          name: "5. Be3 Variation",
+          moves: {
+            "": ["e2-e4"],
+            "e2-e4": ["c7-c5"],
+            "e2-e4,c7-c5": ["g1-f3"],
+            "e2-e4,c7-c5,g1-f3": ["b8-c6"],
+            "e2-e4,c7-c5,g1-f3,b8-c6": ["d2-d4"],
+            "e2-e4,c7-c5,g1-f3,b8-c6,d2-d4": ["c5-d4"],
+            "e2-e4,c7-c5,g1-f3,b8-c6,d2-d4,c5-d4": ["f3-d4"],
+            "e2-e4,c7-c5,g1-f3,b8-c6,d2-d4,c5-d4,f3-d4": ["g7-g6"],
+            "e2-e4,c7-c5,g1-f3,b8-c6,d2-d4,c5-d4,f3-d4,g7-g6": ["c1-e3"],
+            "e2-e4,c7-c5,g1-f3,b8-c6,d2-d4,c5-d4,f3-d4,g7-g6,c1-e3": ["f8-g7"],
+            "e2-e4,c7-c5,g1-f3,b8-c6,d2-d4,c5-d4,f3-d4,g7-g6,c1-e3,f8-g7": ["b1-c3"],
+            "e2-e4,c7-c5,g1-f3,b8-c6,d2-d4,c5-d4,f3-d4,g7-g6,c1-e3,f8-g7,b1-c3": ["g8-f6"],
+            "e2-e4,c7-c5,g1-f3,b8-c6,d2-d4,c5-d4,f3-d4,g7-g6,c1-e3,f8-g7,b1-c3,g8-f6": ["f1-c4"],
+            "e2-e4,c7-c5,g1-f3,b8-c6,d2-d4,c5-d4,f3-d4,g7-g6,c1-e3,f8-g7,b1-c3,g8-f6,f1-c4": ["e8-g8"],
+            "e2-e4,c7-c5,g1-f3,b8-c6,d2-d4,c5-d4,f3-d4,g7-g6,c1-e3,f8-g7,b1-c3,g8-f6,f1-c4,e8-g8": ["c4-b3"],
+            "e2-e4,c7-c5,g1-f3,b8-c6,d2-d4,c5-d4,f3-d4,g7-g6,c1-e3,f8-g7,b1-c3,g8-f6,f1-c4,e8-g8,c4-b3": ["d7-d6"],
+            "e2-e4,c7-c5,g1-f3,b8-c6,d2-d4,c5-d4,f3-d4,g7-g6,c1-e3,f8-g7,b1-c3,g8-f6,f1-c4,e8-g8,c4-b3,d7-d6": ["f2-f3"],
+            "e2-e4,c7-c5,g1-f3,b8-c6,d2-d4,c5-d4,f3-d4,g7-g6,c1-e3,f8-g7,b1-c3,g8-f6,f1-c4,e8-g8,c4-b3,d7-d6,f2-f3": ["c8-d7"],
+            "e2-e4,c7-c5,g1-f3,b8-c6,d2-d4,c5-d4,f3-d4,g7-g6,c1-e3,f8-g7,b1-c3,g8-f6,f1-c4,e8-g8,c4-b3,d7-d6,f2-f3,c8-d7": ["d1-d2"]
+          }
+        },
+        f3Variation: {
+          name: "5. f3 Variation",
+          moves: {
+            "": ["e2-e4"],
+            "e2-e4": ["c7-c5"],
+            "e2-e4,c7-c5": ["g1-f3"],
+            "e2-e4,c7-c5,g1-f3": ["b8-c6"],
+            "e2-e4,c7-c5,g1-f3,b8-c6": ["d2-d4"],
+            "e2-e4,c7-c5,g1-f3,b8-c6,d2-d4": ["c5-d4"],
+            "e2-e4,c7-c5,g1-f3,b8-c6,d2-d4,c5-d4": ["f3-d4"],
+            "e2-e4,c7-c5,g1-f3,b8-c6,d2-d4,c5-d4,f3-d4": ["g7-g6"],
+            "e2-e4,c7-c5,g1-f3,b8-c6,d2-d4,c5-d4,f3-d4,g7-g6": ["f2-f3"],
+            "e2-e4,c7-c5,g1-f3,b8-c6,d2-d4,c5-d4,f3-d4,g7-g6,f2-f3": ["f8-g7"],
+            "e2-e4,c7-c5,g1-f3,b8-c6,d2-d4,c5-d4,f3-d4,g7-g6,f2-f3,f8-g7": ["b1-c3"],
+            "e2-e4,c7-c5,g1-f3,b8-c6,d2-d4,c5-d4,f3-d4,g7-g6,f2-f3,f8-g7,b1-c3": ["g8-f6"],
+            "e2-e4,c7-c5,g1-f3,b8-c6,d2-d4,c5-d4,f3-d4,g7-g6,f2-f3,f8-g7,b1-c3,g8-f6": ["c1-e3"],
+            "e2-e4,c7-c5,g1-f3,b8-c6,d2-d4,c5-d4,f3-d4,g7-g6,f2-f3,f8-g7,b1-c3,g8-f6,c1-e3": ["e8-g8"],
+            "e2-e4,c7-c5,g1-f3,b8-c6,d2-d4,c5-d4,f3-d4,g7-g6,f2-f3,f8-g7,b1-c3,g8-f6,c1-e3,e8-g8": ["d1-d2"],
+            "e2-e4,c7-c5,g1-f3,b8-c6,d2-d4,c5-d4,f3-d4,g7-g6,f2-f3,f8-g7,b1-c3,g8-f6,c1-e3,e8-g8,d1-d2": ["d7-d6"],
+            "e2-e4,c7-c5,g1-f3,b8-c6,d2-d4,c5-d4,f3-d4,g7-g6,f2-f3,f8-g7,b1-c3,g8-f6,c1-e3,e8-g8,d1-d2,d7-d6": ["e1-c1"],
+            "e2-e4,c7-c5,g1-f3,b8-c6,d2-d4,c5-d4,f3-d4,g7-g6,f2-f3,f8-g7,b1-c3,g8-f6,c1-e3,e8-g8,d1-d2,d7-d6,e1-c1": ["c6-d4"],
+            "e2-e4,c7-c5,g1-f3,b8-c6,d2-d4,c5-d4,f3-d4,g7-g6,f2-f3,f8-g7,b1-c3,g8-f6,c1-e3,e8-g8,d1-d2,d7-d6,e1-c1,c6-d4": ["e3-d4"]
+          }
+        }
       }
     },
     scotchGame: {
       name: "Scotch Game",
       color: "white",
-      moves: {
-        "": ["e2-e4"],
-        "e2-e4": ["e7-e5"],
-        "e2-e4,e7-e5": ["g1-f3"],
-        "e2-e4,e7-e5,g1-f3": ["b8-c6"],
-        "e2-e4,e7-e5,g1-f3,b8-c6": ["d2-d4"],
-        "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4": ["e5-d4"],
-        "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4": ["f3-d4"],
-        "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f3-d4": ["f8-c5", "g8-f6", "d8-h4"],
-        "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f3-d4,f8-c5": ["d4-b5", "d4-c6"],
-        "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f3-d4,g8-f6": ["d4-c6", "b1-c3"],
+      variations: {
+        classical: {
+          name: "Classical Variation",
+          moves: {
+            "": ["e2-e4"],
+            "e2-e4": ["e7-e5"],
+            "e2-e4,e7-e5": ["g1-f3"],
+            "e2-e4,e7-e5,g1-f3": ["b8-c6"],
+            "e2-e4,e7-e5,g1-f3,b8-c6": ["d2-d4"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4": ["e5-d4"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4": ["f3-d4"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f3-d4": ["f8-c5"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f3-d4,f8-c5": ["c1-e3"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f3-d4,f8-c5,c1-e3": ["d8-f6"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f3-d4,f8-c5,c1-e3,d8-f6": ["c2-c3"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f3-d4,f8-c5,c1-e3,d8-f6,c2-c3": ["g8-e7"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f3-d4,f8-c5,c1-e3,d8-f6,c2-c3,g8-e7": ["f1-c4"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f3-d4,f8-c5,c1-e3,d8-f6,c2-c3,g8-e7,f1-c4": ["e8-g8"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f3-d4,f8-c5,c1-e3,d8-f6,c2-c3,g8-e7,f1-c4,e8-g8": ["e1-g1"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f3-d4,f8-c5,c1-e3,d8-f6,c2-c3,g8-e7,f1-c4,e8-g8,e1-g1": ["c5-b6"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f3-d4,f8-c5,c1-e3,d8-f6,c2-c3,g8-e7,f1-c4,e8-g8,e1-g1,c5-b6": ["f2-f4"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f3-d4,f8-c5,c1-e3,d8-f6,c2-c3,g8-e7,f1-c4,e8-g8,e1-g1,c5-b6,f2-f4": ["d7-d6"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f3-d4,f8-c5,c1-e3,d8-f6,c2-c3,g8-e7,f1-c4,e8-g8,e1-g1,c5-b6,f2-f4,d7-d6": ["g1-h1"]
+          }
+        },
+        schmidt: {
+          name: "Schmidt Variation",
+          moves: {
+            "": ["e2-e4"],
+            "e2-e4": ["e7-e5"],
+            "e2-e4,e7-e5": ["g1-f3"],
+            "e2-e4,e7-e5,g1-f3": ["b8-c6"],
+            "e2-e4,e7-e5,g1-f3,b8-c6": ["d2-d4"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4": ["e5-d4"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4": ["f3-d4"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f3-d4": ["g8-f6"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f3-d4,g8-f6": ["d4-c6"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f3-d4,g8-f6,d4-c6": ["b7-c6"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f3-d4,g8-f6,d4-c6,b7-c6": ["e4-e5"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f3-d4,g8-f6,d4-c6,b7-c6,e4-e5": ["d8-e7"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f3-d4,g8-f6,d4-c6,b7-c6,e4-e5,d8-e7": ["d1-e2"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f3-d4,g8-f6,d4-c6,b7-c6,e4-e5,d8-e7,d1-e2": ["f6-d5"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f3-d4,g8-f6,d4-c6,b7-c6,e4-e5,d8-e7,d1-e2,f6-d5": ["c2-c4"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f3-d4,g8-f6,d4-c6,b7-c6,e4-e5,d8-e7,d1-e2,f6-d5,c2-c4": ["c8-a6"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f3-d4,g8-f6,d4-c6,b7-c6,e4-e5,d8-e7,d1-e2,f6-d5,c2-c4,c8-a6": ["b2-b3"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f3-d4,g8-f6,d4-c6,b7-c6,e4-e5,d8-e7,d1-e2,f6-d5,c2-c4,c8-a6,b2-b3": ["g7-g6"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f3-d4,g8-f6,d4-c6,b7-c6,e4-e5,d8-e7,d1-e2,f6-d5,c2-c4,c8-a6,b2-b3,g7-g6": ["g2-g3"]
+          }
+        },
+        fourKnights: {
+          name: "Scotch Four Knights",
+          moves: {
+            "": ["e2-e4"],
+            "e2-e4": ["e7-e5"],
+            "e2-e4,e7-e5": ["g1-f3"],
+            "e2-e4,e7-e5,g1-f3": ["b8-c6"],
+            "e2-e4,e7-e5,g1-f3,b8-c6": ["d2-d4"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4": ["e5-d4"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4": ["f3-d4"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f3-d4": ["g8-f6"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f3-d4,g8-f6": ["b1-c3"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f3-d4,g8-f6,b1-c3": ["f8-b4"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f3-d4,g8-f6,b1-c3,f8-b4": ["d4-c6"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f3-d4,g8-f6,b1-c3,f8-b4,d4-c6": ["b7-c6"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f3-d4,g8-f6,b1-c3,f8-b4,d4-c6,b7-c6": ["f1-d3"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f3-d4,g8-f6,b1-c3,f8-b4,d4-c6,b7-c6,f1-d3": ["d7-d5"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f3-d4,g8-f6,b1-c3,f8-b4,d4-c6,b7-c6,f1-d3,d7-d5": ["e4-d5"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f3-d4,g8-f6,b1-c3,f8-b4,d4-c6,b7-c6,f1-d3,d7-d5,e4-d5": ["c6-d5"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f3-d4,g8-f6,b1-c3,f8-b4,d4-c6,b7-c6,f1-d3,d7-d5,e4-d5,c6-d5": ["e1-g1"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f3-d4,g8-f6,b1-c3,f8-b4,d4-c6,b7-c6,f1-d3,d7-d5,e4-d5,c6-d5,e1-g1": ["e8-g8"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f3-d4,g8-f6,b1-c3,f8-b4,d4-c6,b7-c6,f1-d3,d7-d5,e4-d5,c6-d5,e1-g1,e8-g8": ["c1-g5"]
+          }
+        },
+        blumenfeld: {
+          name: "Blumenfeld Scotch",
+          moves: {
+            "": ["e2-e4"],
+            "e2-e4": ["e7-e5"],
+            "e2-e4,e7-e5": ["g1-f3"],
+            "e2-e4,e7-e5,g1-f3": ["b8-c6"],
+            "e2-e4,e7-e5,g1-f3,b8-c6": ["d2-d4"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4": ["e5-d4"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4": ["f3-d4"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f3-d4": ["f8-c5"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f3-d4,f8-c5": ["c1-e3"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f3-d4,f8-c5,c1-e3": ["d8-f6"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f3-d4,f8-c5,c1-e3,d8-f6": ["d4-b5"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f3-d4,f8-c5,c1-e3,d8-f6,d4-b5": ["c5-e3"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f3-d4,f8-c5,c1-e3,d8-f6,d4-b5,c5-e3": ["f2-e3"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f3-d4,f8-c5,c1-e3,d8-f6,d4-b5,c5-e3,f2-e3": ["f6-h4"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f3-d4,f8-c5,c1-e3,d8-f6,d4-b5,c5-e3,f2-e3,f6-h4": ["g2-g3"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f3-d4,f8-c5,c1-e3,d8-f6,d4-b5,c5-e3,f2-e3,f6-h4,g2-g3": ["h4-d8"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f3-d4,f8-c5,c1-e3,d8-f6,d4-b5,c5-e3,f2-e3,f6-h4,g2-g3,h4-d8": ["d1-g4"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f3-d4,f8-c5,c1-e3,d8-f6,d4-b5,c5-e3,f2-e3,f6-h4,g2-g3,h4-d8,d1-g4": ["g7-g6"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f3-d4,f8-c5,c1-e3,d8-f6,d4-b5,c5-e3,f2-e3,f6-h4,g2-g3,h4-d8,d1-g4,g7-g6": ["g4-f4"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f3-d4,f8-c5,c1-e3,d8-f6,d4-b5,c5-e3,f2-e3,f6-h4,g2-g3,h4-d8,d1-g4,g7-g6,g4-f4": ["d7-d6"]
+          }
+        },
+        steinitz: {
+          name: "Steinitz Variation",
+          moves: {
+            "": ["e2-e4"],
+            "e2-e4": ["e7-e5"],
+            "e2-e4,e7-e5": ["g1-f3"],
+            "e2-e4,e7-e5,g1-f3": ["b8-c6"],
+            "e2-e4,e7-e5,g1-f3,b8-c6": ["d2-d4"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4": ["e5-d4"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4": ["f3-d4"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f3-d4": ["d8-h4"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f3-d4,d8-h4": ["b1-c3"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f3-d4,d8-h4,b1-c3": ["f8-b4"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f3-d4,d8-h4,b1-c3,f8-b4": ["f1-e2"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f3-d4,d8-h4,b1-c3,f8-b4,f1-e2": ["h4-e4"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f3-d4,d8-h4,b1-c3,f8-b4,f1-e2,h4-e4": ["d4-b5"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f3-d4,d8-h4,b1-c3,f8-b4,f1-e2,h4-e4,d4-b5": ["b4-c3"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f3-d4,d8-h4,b1-c3,f8-b4,f1-e2,h4-e4,d4-b5,b4-c3": ["b2-c3"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f3-d4,d8-h4,b1-c3,f8-b4,f1-e2,h4-e4,d4-b5,b4-c3,b2-c3": ["e8-d8"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f3-d4,d8-h4,b1-c3,f8-b4,f1-e2,h4-e4,d4-b5,b4-c3,b2-c3,e8-d8": ["e1-g1"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f3-d4,d8-h4,b1-c3,f8-b4,f1-e2,h4-e4,d4-b5,b4-c3,b2-c3,e8-d8,e1-g1": ["g8-f6"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f3-d4,d8-h4,b1-c3,f8-b4,f1-e2,h4-e4,d4-b5,b4-c3,b2-c3,e8-d8,e1-g1,g8-f6": ["f1-e1"]
+          }
+        }
       }
     },
     scotchGambit: {
       name: "Scotch Gambit",
       color: "white",
-      moves: {
-        "": ["e2-e4"],
-        "e2-e4": ["e7-e5"],
-        "e2-e4,e7-e5": ["g1-f3"],
-        "e2-e4,e7-e5,g1-f3": ["b8-c6"],
-        "e2-e4,e7-e5,g1-f3,b8-c6": ["d2-d4"],
-        "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4": ["e5-d4"],
-        "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4": ["f1-c4"],
-        "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f1-c4": ["f8-c5", "g8-f6", "f7-f5"],
-        "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f1-c4,f8-c5": ["c2-c3", "e1-g1"],
-        "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f1-c4,g8-f6": ["e4-e5", "c2-c3"],
+      variations: {
+        mainLine: {
+          name: "Main Line (Two Knights Defense)",
+          moves: {
+            "": ["e2-e4"],
+            "e2-e4": ["e7-e5"],
+            "e2-e4,e7-e5": ["g1-f3"],
+            "e2-e4,e7-e5,g1-f3": ["b8-c6"],
+            "e2-e4,e7-e5,g1-f3,b8-c6": ["d2-d4"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4": ["e5-d4"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4": ["f1-c4"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f1-c4": ["g8-f6"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f1-c4,g8-f6": ["e4-e5"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f1-c4,g8-f6,e4-e5": ["d7-d5"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f1-c4,g8-f6,e4-e5,d7-d5": ["c4-b5"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f1-c4,g8-f6,e4-e5,d7-d5,c4-b5": ["f6-e4"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f1-c4,g8-f6,e4-e5,d7-d5,c4-b5,f6-e4": ["f3-d4"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f1-c4,g8-f6,e4-e5,d7-d5,c4-b5,f6-e4,f3-d4": ["c8-d7"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f1-c4,g8-f6,e4-e5,d7-d5,c4-b5,f6-e4,f3-d4,c8-d7": ["b5-c6"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f1-c4,g8-f6,e4-e5,d7-d5,c4-b5,f6-e4,f3-d4,c8-d7,b5-c6": ["b7-c6"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f1-c4,g8-f6,e4-e5,d7-d5,c4-b5,f6-e4,f3-d4,c8-d7,b5-c6,b7-c6": ["e1-g1"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f1-c4,g8-f6,e4-e5,d7-d5,c4-b5,f6-e4,f3-d4,c8-d7,b5-c6,b7-c6,e1-g1": ["f8-c5"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f1-c4,g8-f6,e4-e5,d7-d5,c4-b5,f6-e4,f3-d4,c8-d7,b5-c6,b7-c6,e1-g1,f8-c5": ["f2-f3"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f1-c4,g8-f6,e4-e5,d7-d5,c4-b5,f6-e4,f3-d4,c8-d7,b5-c6,b7-c6,e1-g1,f8-c5,f2-f3": ["e4-g5"]
+          }
+        },
+        classical: {
+          name: "Classical Variation",
+          moves: {
+            "": ["e2-e4"],
+            "e2-e4": ["e7-e5"],
+            "e2-e4,e7-e5": ["g1-f3"],
+            "e2-e4,e7-e5,g1-f3": ["b8-c6"],
+            "e2-e4,e7-e5,g1-f3,b8-c6": ["d2-d4"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4": ["e5-d4"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4": ["f1-c4"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f1-c4": ["f8-c5"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f1-c4,f8-c5": ["c2-c3"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f1-c4,f8-c5,c2-c3": ["g8-f6"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f1-c4,f8-c5,c2-c3,g8-f6": ["c3-d4"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f1-c4,f8-c5,c2-c3,g8-f6,c3-d4": ["c5-b4"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f1-c4,f8-c5,c2-c3,g8-f6,c3-d4,c5-b4": ["c1-d2"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f1-c4,f8-c5,c2-c3,g8-f6,c3-d4,c5-b4,c1-d2": ["b4-d2"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f1-c4,f8-c5,c2-c3,g8-f6,c3-d4,c5-b4,c1-d2,b4-d2": ["b1-d2"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f1-c4,f8-c5,c2-c3,g8-f6,c3-d4,c5-b4,c1-d2,b4-d2,b1-d2": ["d7-d5"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f1-c4,f8-c5,c2-c3,g8-f6,c3-d4,c5-b4,c1-d2,b4-d2,b1-d2,d7-d5": ["e4-d5"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f1-c4,f8-c5,c2-c3,g8-f6,c3-d4,c5-b4,c1-d2,b4-d2,b1-d2,d7-d5,e4-d5": ["f6-d5"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f1-c4,f8-c5,c2-c3,g8-f6,c3-d4,c5-b4,c1-d2,b4-d2,b1-d2,d7-d5,e4-d5,f6-d5": ["e1-g1"]
+          }
+        },
+        haxoGambit: {
+          name: "Haxo Gambit",
+          moves: {
+            "": ["e2-e4"],
+            "e2-e4": ["e7-e5"],
+            "e2-e4,e7-e5": ["g1-f3"],
+            "e2-e4,e7-e5,g1-f3": ["b8-c6"],
+            "e2-e4,e7-e5,g1-f3,b8-c6": ["d2-d4"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4": ["e5-d4"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4": ["f1-c4"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f1-c4": ["f8-c5"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f1-c4,f8-c5": ["c2-c3"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f1-c4,f8-c5,c2-c3": ["d4-c3"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f1-c4,f8-c5,c2-c3,d4-c3": ["c4-f7"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f1-c4,f8-c5,c2-c3,d4-c3,c4-f7": ["e8-f7"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f1-c4,f8-c5,c2-c3,d4-c3,c4-f7,e8-f7": ["d1-d5"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f1-c4,f8-c5,c2-c3,d4-c3,c4-f7,e8-f7,d1-d5": ["e8-e8"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f1-c4,f8-c5,c2-c3,d4-c3,c4-f7,e8-f7,d1-d5,e8-e8": ["d5-c5"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f1-c4,f8-c5,c2-c3,d4-c3,c4-f7,e8-f7,d1-d5,e8-e8,d5-c5": ["d7-d6"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f1-c4,f8-c5,c2-c3,d4-c3,c4-f7,e8-f7,d1-d5,e8-e8,d5-c5,d7-d6": ["c5-c3"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f1-c4,f8-c5,c2-c3,d4-c3,c4-f7,e8-f7,d1-d5,e8-e8,d5-c5,d7-d6,c5-c3": ["g8-f6"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f1-c4,f8-c5,c2-c3,d4-c3,c4-f7,e8-f7,d1-d5,e8-e8,d5-c5,d7-d6,c5-c3,g8-f6": ["e1-g1"]
+          }
+        },
+        maxLange: {
+          name: "Max Lange Attack",
+          moves: {
+            "": ["e2-e4"],
+            "e2-e4": ["e7-e5"],
+            "e2-e4,e7-e5": ["g1-f3"],
+            "e2-e4,e7-e5,g1-f3": ["b8-c6"],
+            "e2-e4,e7-e5,g1-f3,b8-c6": ["d2-d4"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4": ["e5-d4"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4": ["f1-c4"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f1-c4": ["g8-f6"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f1-c4,g8-f6": ["e1-g1"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f1-c4,g8-f6,e1-g1": ["f6-e4"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f1-c4,g8-f6,e1-g1,f6-e4": ["f1-e1"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f1-c4,g8-f6,e1-g1,f6-e4,f1-e1": ["d7-d5"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f1-c4,g8-f6,e1-g1,f6-e4,f1-e1,d7-d5": ["c4-d5"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f1-c4,g8-f6,e1-g1,f6-e4,f1-e1,d7-d5,c4-d5": ["d8-d5"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f1-c4,g8-f6,e1-g1,f6-e4,f1-e1,d7-d5,c4-d5,d8-d5": ["b1-c3"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f1-c4,g8-f6,e1-g1,f6-e4,f1-e1,d7-d5,c4-d5,d8-d5,b1-c3": ["d5-a5"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f1-c4,g8-f6,e1-g1,f6-e4,f1-e1,d7-d5,c4-d5,d8-d5,b1-c3,d5-a5": ["c3-e4"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f1-c4,g8-f6,e1-g1,f6-e4,f1-e1,d7-d5,c4-d5,d8-d5,b1-c3,d5-a5,c3-e4": ["c8-e6"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f1-c4,g8-f6,e1-g1,f6-e4,f1-e1,d7-d5,c4-d5,d8-d5,b1-c3,d5-a5,c3-e4,c8-e6": ["e4-g5"]
+          }
+        },
+        solidBe7: {
+          name: "Solid 4...Be7",
+          moves: {
+            "": ["e2-e4"],
+            "e2-e4": ["e7-e5"],
+            "e2-e4,e7-e5": ["g1-f3"],
+            "e2-e4,e7-e5,g1-f3": ["b8-c6"],
+            "e2-e4,e7-e5,g1-f3,b8-c6": ["d2-d4"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4": ["e5-d4"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4": ["f1-c4"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f1-c4": ["f8-e7"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f1-c4,f8-e7": ["c2-c3"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f1-c4,f8-e7,c2-c3": ["d7-d6"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f1-c4,f8-e7,c2-c3,d7-d6": ["d1-b3"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f1-c4,f8-e7,c2-c3,d7-d6,d1-b3": ["g8-f6"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f1-c4,f8-e7,c2-c3,d7-d6,d1-b3,g8-f6": ["c4-f7"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f1-c4,f8-e7,c2-c3,d7-d6,d1-b3,g8-f6,c4-f7": ["e8-f8"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f1-c4,f8-e7,c2-c3,d7-d6,d1-b3,g8-f6,c4-f7,e8-f8": ["f3-g5"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f1-c4,f8-e7,c2-c3,d7-d6,d1-b3,g8-f6,c4-f7,e8-f8,f3-g5": ["c6-e5"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f1-c4,f8-e7,c2-c3,d7-d6,d1-b3,g8-f6,c4-f7,e8-f8,f3-g5,c6-e5": ["e1-g1"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f1-c4,f8-e7,c2-c3,d7-d6,d1-b3,g8-f6,c4-f7,e8-f8,f3-g5,c6-e5,e1-g1": ["h7-h6"],
+            "e2-e4,e7-e5,g1-f3,b8-c6,d2-d4,e5-d4,f1-c4,f8-e7,c2-c3,d7-d6,d1-b3,g8-f6,c4-f7,e8-f8,f3-g5,c6-e5,e1-g1,h7-h6": ["f2-f4"]
+          }
+        }
       }
     }
   };
@@ -221,14 +555,13 @@ const ChessTrainingApp = () => {
     switch (pieceType) {
       case 'k': return kingSVG;
       case 'q': return queenSVG;
-      case 'r': return rookSVG;     // ← Now returns rook instead of king
-      case 'b': return bishopSVG;   // ← Now returns bishop instead of king
-      case 'n': return knightSVG;   // ← Now returns knight instead of king
-      case 'p': return pawnSVG;     // ← Now returns pawn instead of king
+      case 'r': return rookSVG;
+      case 'b': return bishopSVG;
+      case 'n': return knightSVG;
+      case 'p': return pawnSVG;
       default: return kingSVG;
     }
   };
-
 
   // Helper function to get display coordinates (flipped for black)
   const getDisplayCoordinates = (row, col) => {
@@ -288,11 +621,59 @@ const ChessTrainingApp = () => {
         return (rowDiff === 0 || colDiff === 0 || rowDiff === colDiff) && !isPathBlocked(fromRow, fromCol, toRow, toCol);
 
       case 'k':
-        return rowDiff <= 1 && colDiff <= 1;
+        // Normal king moves
+        if (rowDiff <= 1 && colDiff <= 1) return true;
+
+        // Castling
+        if (rowDiff === 0 && colDiff === 2) {
+          return canCastle(fromRow, fromCol, toRow, toCol, piece);
+        }
+        return false;
 
       default:
         return false;
     }
+  };
+
+  const canCastle = (fromRow, fromCol, toRow, toCol, piece) => {
+    // Basic castling validation
+    const isWhite = isPieceWhite(piece);
+    const kingRow = isWhite ? 7 : 0;
+    const kingCol = 4;
+
+    // King must be on starting square
+    if (fromRow !== kingRow || fromCol !== kingCol) return false;
+
+    // Determine if kingside or queenside castling
+    const isKingside = toCol === 6;
+    const isQueenside = toCol === 2;
+
+    if (!isKingside && !isQueenside) return false;
+
+    // Check if rook is in correct position
+    const rookCol = isKingside ? 7 : 0;
+    const rook = board[kingRow][rookCol];
+    const expectedRook = isWhite ? 'R' : 'r';
+
+    if (rook !== expectedRook) return false;
+
+    // Check if squares between king and rook are empty
+    const start = Math.min(kingCol, rookCol);
+    const end = Math.max(kingCol, rookCol);
+
+    for (let col = start + 1; col < end; col++) {
+      if (board[kingRow][col] !== null) return false;
+    }
+
+    // In a real game, we'd also check:
+    // - King hasn't moved (castling rights)
+    // - Rook hasn't moved (castling rights)
+    // - King not in check
+    // - King doesn't pass through check
+    // - King doesn't end up in check
+    // For training purposes, we'll allow castling if basic conditions are met
+
+    return true;
   };
 
   const isPathBlocked = (fromRow, fromCol, toRow, toCol) => {
@@ -312,10 +693,28 @@ const ChessTrainingApp = () => {
   };
 
   const makeMove = (fromRow, fromCol, toRow, toCol) => {
+    console.log('makeMove called - clearing highlights first');
+
+    // Force clear any existing highlights immediately
+    setLastMove(null);
+    setSelectedSquare(null);
+
     const newBoard = board.map(row => [...row]);
     const piece = newBoard[fromRow][fromCol];
 
     console.log(`Making move: ${getSquareName(fromRow, fromCol)}-${getSquareName(toRow, toCol)} (${piece})`);
+
+    // Handle castling
+    if (piece && piece.toLowerCase() === 'k' && Math.abs(toCol - fromCol) === 2) {
+      // This is a castling move
+      const isKingside = toCol === 6;
+      const rookFromCol = isKingside ? 7 : 0;
+      const rookToCol = isKingside ? 5 : 3;
+
+      // Move the rook
+      newBoard[toRow][rookToCol] = newBoard[fromRow][rookFromCol];
+      newBoard[fromRow][rookFromCol] = null;
+    }
 
     newBoard[toRow][toCol] = piece;
     newBoard[fromRow][fromCol] = null;
@@ -323,9 +722,13 @@ const ChessTrainingApp = () => {
     const moveNotation = `${getSquareName(fromRow, fromCol)}-${getSquareName(toRow, toCol)}`;
     const updatedMoveHistory = [...moveHistory, moveNotation];
 
+    // Update all state together
     setBoard(newBoard);
     setMoveHistory(updatedMoveHistory);
     setCurrentPlayer(prevPlayer => prevPlayer === 'white' ? 'black' : 'white');
+
+    // Set the last move highlighting cleanly
+    setLastMoveHighlight(fromRow, fromCol, toRow, toCol);
 
     console.log('Updated move history:', updatedMoveHistory);
 
@@ -337,8 +740,9 @@ const ChessTrainingApp = () => {
     console.log('Current moveHistory when making opponent move:', currentMoveHistory);
 
     const opening = openingDatabases[trainingMode];
+    const variation = opening.variations[selectedVariation];
     const nextMoveKey = currentMoveHistory.join(',');
-    const opponentMoves = opening.moves[nextMoveKey];
+    const opponentMoves = variation.moves[nextMoveKey];
 
     console.log('Looking for opponent move with key:', `"${nextMoveKey}"`);
     console.log('Available moves for this key:', opponentMoves);
@@ -346,6 +750,12 @@ const ChessTrainingApp = () => {
     if (opponentMoves && opponentMoves.length > 0) {
       // Wait a bit to simulate thinking time
       addTimeout(() => {
+        console.log('makeOpponentMove - clearing highlights first');
+
+        // Force clear any existing highlights immediately
+        setLastMove(null);
+        setSelectedSquare(null);
+
         const opponentMove = opponentMoves[Math.floor(Math.random() * opponentMoves.length)];
         console.log('Selected opponent move:', opponentMove);
         const [fromSquare, toSquare] = opponentMove.split('-');
@@ -360,6 +770,17 @@ const ChessTrainingApp = () => {
           const piece = newBoard[fromRow][fromCol];
 
           console.log(`Making opponent move: ${getSquareName(fromRow, fromCol)}-${getSquareName(toRow, toCol)} (${piece})`);
+
+          // Handle castling for opponent
+          if (piece && piece.toLowerCase() === 'k' && Math.abs(toCol - fromCol) === 2) {
+            const isKingside = toCol === 6;
+            const rookFromCol = isKingside ? 7 : 0;
+            const rookToCol = isKingside ? 5 : 3;
+
+            // Move the rook
+            newBoard[toRow][rookToCol] = newBoard[fromRow][rookFromCol];
+            newBoard[fromRow][rookFromCol] = null;
+          }
 
           newBoard[toRow][toCol] = piece;
           newBoard[fromRow][fromCol] = null;
@@ -377,6 +798,9 @@ const ChessTrainingApp = () => {
 
         setCurrentPlayer(prevPlayer => prevPlayer === 'white' ? 'black' : 'white');
         setFeedback('Your turn!');
+
+        // Set the last move highlighting cleanly
+        setLastMoveHighlight(fromRow, fromCol, toRow, toCol);
 
       }, 800);
     } else {
@@ -400,6 +824,14 @@ const ChessTrainingApp = () => {
     setScore(lastState.score);
     setShowHint(lastState.showHint);
     setNeedsReplay(lastState.needsReplay);
+    setMoveCounter(lastState.moveCounter || 0);
+
+    // Handle lastMove restoration - if we're going back to the beginning, clear it
+    if (lastState.moveHistory.length === 0) {
+      setLastMove(null);
+    } else {
+      setLastMove(lastState.lastMove);
+    }
 
     // Remove the last state from history
     setUndoStack(prevStack => prevStack.slice(0, -1));
@@ -407,6 +839,9 @@ const ChessTrainingApp = () => {
     setFeedback('Move undone. Try again!');
     setSelectedSquare(null);
     setDraggedPiece(null);
+
+    // Clear any lingering highlights
+    clearHighlights();
 
     // Clear feedback after a moment
     addTimeout(() => {
@@ -416,15 +851,16 @@ const ChessTrainingApp = () => {
 
   const checkMove = (userMove, currentMoveHistory) => {
     const opening = openingDatabases[trainingMode];
+    const variation = opening.variations[selectedVariation];
     // Use the moveHistory that was passed in, excluding the user's move we just made
     const moveKey = currentMoveHistory.slice(0, -1).join(',');
-    const expectedMoves = opening.moves[moveKey] || [];
+    const expectedMoves = variation.moves[moveKey] || [];
 
     console.log('Checking user move:', userMove);
     console.log('Current move history:', currentMoveHistory);
     console.log('Move key for lookup:', `"${moveKey}"`);
     console.log('Expected moves:', expectedMoves);
-    console.log('Available keys in database:', Object.keys(opening.moves));
+    console.log('Available keys in database:', Object.keys(variation.moves));
     console.log('Move is correct?', expectedMoves.includes(userMove));
 
     // Clear any existing hints
@@ -455,7 +891,9 @@ const ChessTrainingApp = () => {
         currentPlayer,
         score: { ...score },
         showHint: null,
-        needsReplay: false
+        needsReplay: false,
+        lastMove: lastMove ? { ...lastMove } : null,
+        moveCounter: moveCounter
       }]);
 
       // Better error handling for empty expected moves
@@ -467,25 +905,57 @@ const ChessTrainingApp = () => {
       // Show hint arrow for the best move only if we have expected moves
       if (expectedMoves.length > 0) {
         const bestMove = expectedMoves[0];
-        const [fromSquare, toSquare] = bestMove.split('-');
-        const [fromRow, fromCol] = parseSquareName(fromSquare);
-        const [toRow, toCol] = parseSquareName(toSquare);
+        console.log('Processing hint for move:', bestMove);
 
-        // Convert to display coordinates
-        const [fromDisplayRow, fromDisplayCol] = getDisplayCoordinates(fromRow, fromCol);
-        const [toDisplayRow, toDisplayCol] = getDisplayCoordinates(toRow, toCol);
+        try {
+          // More robust move parsing
+          if (!bestMove || typeof bestMove !== 'string' || !bestMove.includes('-')) {
+            throw new Error(`Invalid move format: ${bestMove}`);
+          }
 
-        setShowHint({
-          from: { row: fromDisplayRow, col: fromDisplayCol },
-          to: { row: toDisplayRow, col: toDisplayCol },
-          notation: bestMove
-        });
+          const [fromSquare, toSquare] = bestMove.split('-');
 
-        console.log('Setting hint arrow:', {
-          from: { row: fromDisplayRow, col: fromDisplayCol },
-          to: { row: toDisplayRow, col: toDisplayCol },
-          notation: bestMove
-        });
+          if (!fromSquare || !toSquare || fromSquare.length !== 2 || toSquare.length !== 2) {
+            throw new Error(`Invalid square format: ${fromSquare} to ${toSquare}`);
+          }
+
+          console.log('Parsing squares:', fromSquare, 'to', toSquare);
+
+          const [fromRow, fromCol] = parseSquareName(fromSquare);
+          const [toRow, toCol] = parseSquareName(toSquare);
+
+          console.log('Parsed coordinates:', {fromRow, fromCol, toRow, toCol});
+
+          // Validate coordinates
+          if (fromRow < 0 || fromRow >= 8 || fromCol < 0 || fromCol >= 8 ||
+              toRow < 0 || toRow >= 8 || toCol < 0 || toCol >= 8) {
+            throw new Error(`Invalid coordinates: (${fromRow},${fromCol}) to (${toRow},${toCol})`);
+          }
+
+          // Convert to display coordinates
+          const [fromDisplayRow, fromDisplayCol] = getDisplayCoordinates(fromRow, fromCol);
+          const [toDisplayRow, toDisplayCol] = getDisplayCoordinates(toRow, toCol);
+
+          console.log('Display coordinates:', {fromDisplayRow, fromDisplayCol, toDisplayRow, toDisplayCol});
+
+          setShowHint({
+            from: { row: fromDisplayRow, col: fromDisplayCol },
+            to: { row: toDisplayRow, col: toDisplayCol },
+            notation: bestMove
+          });
+
+          console.log('Successfully set hint arrow:', {
+            from: { row: fromDisplayRow, col: fromDisplayCol },
+            to: { row: toDisplayRow, col: toDisplayCol },
+            notation: bestMove
+          });
+        } catch (error) {
+          console.error('Error parsing move for hint:', bestMove, error);
+          console.error('Error details:', error.message);
+          console.error('Move key was:', moveKey);
+          console.error('Expected moves were:', expectedMoves);
+          // Don't show hint if parsing fails, but don't crash the app
+        }
       } else {
         console.log('No expected moves found - cannot show hint arrow');
       }
@@ -497,6 +967,42 @@ const ChessTrainingApp = () => {
         setNeedsReplay(false);
       }, 5000);
     }
+  };
+
+  // Helper function to clear all highlights
+  const clearHighlights = () => {
+    console.log('Clearing all highlights');
+    setSelectedSquare(null);
+    setDraggedPiece(null);
+    setShowHint(null);
+
+    // Force clear lastMove with functional update
+    setLastMove(prevLastMove => {
+      console.log('Force clearing lastMove:', prevLastMove);
+      return null;
+    });
+  };
+
+  // Helper function to set last move with explicit clearing
+  const setLastMoveHighlight = (fromRow, fromCol, toRow, toCol) => {
+    console.log('Setting last move highlight:', { fromRow, fromCol, toRow, toCol });
+
+    // Increment move counter for uniqueness
+    const newMoveId = moveCounter + 1;
+    setMoveCounter(newMoveId);
+
+    // Force clear with immediate null set
+    setLastMove(null);
+
+    // Use requestAnimationFrame to ensure the clear happens before the new set
+    requestAnimationFrame(() => {
+      console.log(`Setting lastMove with ID ${newMoveId}`);
+      setLastMove({
+        from: { row: fromRow, col: fromCol },
+        to: { row: toRow, col: toCol },
+        id: newMoveId
+      });
+    });
   };
 
   const handleMouseDown = (e, displayRow, displayCol) => {
@@ -642,6 +1148,7 @@ const ChessTrainingApp = () => {
       const fromPiece = board[fromRow][fromCol];
 
       if (row === fromRow && col === fromCol) {
+        // Clicking the same square - deselect
         setSelectedSquare(null);
         return;
       }
@@ -651,17 +1158,30 @@ const ChessTrainingApp = () => {
         checkMove(moveNotation, updatedMoveHistory);
         setSelectedSquare(null);
       } else {
-        setSelectedSquare(piece && isPieceWhite(piece) === (currentPlayer === 'white') ? [row, col] : null);
+        // Invalid move - select new piece if it's user's piece
+        if (piece && isPieceWhite(piece) === (currentPlayer === 'white')) {
+          setSelectedSquare([row, col]);
+        } else {
+          setSelectedSquare(null);
+        }
       }
     } else {
+      // No piece selected - select if it's user's piece
       if (piece && isPieceWhite(piece) === (currentPlayer === 'white')) {
         setSelectedSquare([row, col]);
       }
     }
   };
 
-  const startTraining = (mode) => {
-    console.log('Starting training for mode:', mode);
+  const startTraining = (mode, variationKey = null) => {
+    console.log('Starting training for mode:', mode, 'variation:', variationKey);
+
+    // If no variation specified, go to variation selection
+    if (!variationKey) {
+      setTrainingMode(mode);
+      setGameMode('variationSelection');
+      return;
+    }
 
     // Clear any existing timeouts
     clearAllTimeouts();
@@ -671,9 +1191,12 @@ const ChessTrainingApp = () => {
 
     // Reset all state immediately
     setTrainingMode(mode);
+    setSelectedVariation(variationKey);
     setGameMode('training');
     setBoard(freshBoard);
     setMoveHistory([]);
+    setLastMove(null);
+    setMoveCounter(0);
     setSelectedSquare(null);
     setFeedback('');
     setScore({ correct: 0, total: 0 });
@@ -682,8 +1205,13 @@ const ChessTrainingApp = () => {
     setNeedsReplay(false);
     setUndoStack([]);
 
+    // Clear any lingering highlights
+    clearHighlights();
+
     // Set the correct starting player based on opening
     const opening = openingDatabases[mode];
+    const variation = opening.variations[variationKey];
+
     if (opening.color === 'black') {
       // If training as black, white moves first
       console.log('Training as black - white will move first');
@@ -693,7 +1221,7 @@ const ChessTrainingApp = () => {
       // Make the first white move automatically after a short delay
       addTimeout(() => {
         console.log('Making automatic first white move');
-        const firstMove = opening.moves[""][0]; // Should be "e2-e4"
+        const firstMove = variation.moves[""][0]; // Should be "e2-e4"
         console.log('First move from database:', firstMove);
 
         if (firstMove) {
@@ -703,10 +1231,24 @@ const ChessTrainingApp = () => {
 
           console.log(`Making first move: ${fromSquare} to ${toSquare}`);
 
+          // Track the first move for highlighting
+          setLastMoveHighlight(fromRow, fromCol, toRow, toCol);
+
           // Make the move directly to avoid state timing issues
           setBoard(currentBoard => {
             const newBoard = currentBoard.map(row => [...row]);
             const piece = newBoard[fromRow][fromCol];
+
+            // Handle castling for first move (unlikely but just in case)
+            if (piece && piece.toLowerCase() === 'k' && Math.abs(toCol - fromCol) === 2) {
+              const isKingside = toCol === 6;
+              const rookFromCol = isKingside ? 7 : 0;
+              const rookToCol = isKingside ? 5 : 3;
+
+              newBoard[toRow][rookToCol] = newBoard[fromRow][rookFromCol];
+              newBoard[fromRow][rookFromCol] = null;
+            }
+
             newBoard[toRow][toCol] = piece;
             newBoard[fromRow][fromCol] = null;
             return newBoard;
@@ -738,6 +1280,8 @@ const ChessTrainingApp = () => {
     // Reset all state at once
     setBoard(freshBoard);
     setMoveHistory([]);
+    setLastMove(null);
+    setMoveCounter(0);
     setSelectedSquare(null);
     setFeedback('');
     setDraggedPiece(null);
@@ -746,15 +1290,20 @@ const ChessTrainingApp = () => {
     setUndoStack([]);
     setScore({ correct: 0, total: 0 });
 
+    // Clear any lingering highlights
+    clearHighlights();
+
     // Restart the training mode
     const opening = openingDatabases[trainingMode];
+    const variation = opening.variations[selectedVariation];
+
     if (opening.color === 'black') {
       setCurrentPlayer('white');
       setFeedback('White is making the first move...');
 
       // Make the first white move automatically after reset
       addTimeout(() => {
-        const firstMove = opening.moves[""][0]; // Should be "e2-e4"
+        const firstMove = variation.moves[""][0]; // Should be "e2-e4"
 
         if (firstMove) {
           const [fromSquare, toSquare] = firstMove.split('-');
@@ -763,10 +1312,24 @@ const ChessTrainingApp = () => {
 
           console.log(`Reset: Making first move ${fromSquare} to ${toSquare}`);
 
+          // Track the first move for highlighting
+          setLastMoveHighlight(fromRow, fromCol, toRow, toCol);
+
           // Make the move directly without using makeMove to avoid moveHistory issues
           setBoard(currentBoard => {
             const newBoard = currentBoard.map(row => [...row]);
             const piece = newBoard[fromRow][fromCol];
+
+            // Handle castling for first move (unlikely but just in case)
+            if (piece && piece.toLowerCase() === 'k' && Math.abs(toCol - fromCol) === 2) {
+              const isKingside = toCol === 6;
+              const rookFromCol = isKingside ? 7 : 0;
+              const rookToCol = isKingside ? 5 : 3;
+
+              newBoard[toRow][rookToCol] = newBoard[fromRow][rookFromCol];
+              newBoard[fromRow][rookFromCol] = null;
+            }
+
             newBoard[toRow][toCol] = piece;
             newBoard[fromRow][fromCol] = null;
             return newBoard;
@@ -787,10 +1350,16 @@ const ChessTrainingApp = () => {
     clearAllTimeouts();
     setGameMode('menu');
     setTrainingMode(null);
+    setSelectedVariation(null);
     setBoard(getInitialBoard()); // Reset board when going back to menu
     setMoveHistory([]);
+    setLastMove(null);
+    setMoveCounter(0);
     setScore({ correct: 0, total: 0 });
     setUndoStack([]);
+
+    // Clear any lingering highlights
+    clearHighlights();
   };
 
   // Handle global mouse events for drag and drop
@@ -845,6 +1414,14 @@ const ChessTrainingApp = () => {
       document.removeEventListener('touchend', handleGlobalTouchEnd);
     };
   }, [draggedPiece]);
+
+  // Clear highlights when game mode changes
+  useEffect(() => {
+    if (gameMode !== 'training') {
+      clearHighlights();
+      setLastMove(null);
+    }
+  }, [gameMode]);
 
   // Cleanup timeouts on unmount
   useEffect(() => {
@@ -1014,6 +1591,70 @@ const ChessTrainingApp = () => {
     }
   };
 
+  if (gameMode === 'variationSelection') {
+    const opening = openingDatabases[trainingMode];
+    const variations = Object.keys(opening.variations);
+
+    return (
+      <div style={styles.container}>
+        <div style={styles.wrapper}>
+          <div style={styles.gameHeader}>
+            <button style={styles.navButton} onClick={backToMenu}>
+              <ChevronLeft size={20} style={{marginRight: '5px'}} />
+              Back to Menu
+            </button>
+
+            <div style={styles.gameTitle}>
+              <h2 style={{fontSize: '2rem', color: '#92400e', marginBottom: '5px'}}>
+                {opening.name}
+              </h2>
+              <p style={{color: '#a16207'}}>Choose a variation to practice</p>
+            </div>
+
+            <div></div>
+          </div>
+
+          <div style={styles.grid}>
+            {variations.map((variationKey) => {
+              const variation = opening.variations[variationKey];
+              return (
+                <div key={variationKey} style={styles.card} onClick={() => startTraining(trainingMode, variationKey)}>
+                  <div style={{...styles.cardHeader, color: opening.color === 'black' ? '#dc2626' : '#2563eb'}}>
+                    <Target size={24} />
+                    <h3 style={{marginLeft: '10px', fontSize: '1.2rem'}}>{variation.name}</h3>
+                  </div>
+                  <p style={styles.cardText}>
+                    Practice this specific variation of the {opening.name}. Learn the key moves and typical responses.
+                  </p>
+                  <button style={{...styles.button, backgroundColor: opening.color === 'black' ? '#dc2626' : '#2563eb'}}>
+                    Practice This Line
+                  </button>
+                </div>
+              );
+            })}
+
+            {/* Random variation option */}
+            <div style={styles.card} onClick={() => {
+              const randomVariation = variations[Math.floor(Math.random() * variations.length)];
+              startTraining(trainingMode, randomVariation);
+            }}>
+              <div style={{...styles.cardHeader, color: '#16a34a'}}>
+                <Play size={24} />
+                <h3 style={{marginLeft: '10px', fontSize: '1.2rem'}}>Random Variation</h3>
+              </div>
+              <p style={styles.cardText}>
+                Practice a random variation from this opening. Perfect for testing your overall knowledge of the opening.
+              </p>
+              <button style={{...styles.button, backgroundColor: '#16a34a'}}>
+                Random Practice
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (gameMode === 'menu') {
     return (
       <div style={styles.container}>
@@ -1029,9 +1670,9 @@ const ChessTrainingApp = () => {
                 <Target size={24} />
                 <h2 style={{marginLeft: '10px'}}>Sicilian Dragon</h2>
               </div>
-              <p style={styles.cardText}>Practice the Accelerated Dragon as Black. White moves automatically - you learn the best responses!</p>
+              <p style={styles.cardText}>Practice the Accelerated Dragon as Black. Choose from 5 different variations or practice randomly!</p>
               <button style={{...styles.button, backgroundColor: '#dc2626'}}>
-                Train as Black
+                Choose Variation
               </button>
             </div>
 
@@ -1040,9 +1681,9 @@ const ChessTrainingApp = () => {
                 <BookOpen size={24} />
                 <h2 style={{marginLeft: '10px'}}>Scotch Game</h2>
               </div>
-              <p style={styles.cardText}>Learn the Scotch Game as White. Black moves automatically - focus on mastering your attacking lines!</p>
+              <p style={styles.cardText}>Learn the Scotch Game as White. Choose from 5 different variations including the Classical and Schmidt lines!</p>
               <button style={{...styles.button, backgroundColor: '#2563eb'}}>
-                Train as White
+                Choose Variation
               </button>
             </div>
 
@@ -1051,9 +1692,9 @@ const ChessTrainingApp = () => {
                 <Play size={24} />
                 <h2 style={{marginLeft: '10px'}}>Scotch Gambit</h2>
               </div>
-              <p style={styles.cardText}>Master the Scotch Gambit as White. Black responds automatically - learn the aggressive sacrificial lines!</p>
+              <p style={styles.cardText}>Master the Scotch Gambit as White. Choose from 5 different variations including the Max Lange Attack!</p>
               <button style={{...styles.button, backgroundColor: '#16a34a'}}>
-                Train as White
+                Choose Variation
               </button>
             </div>
           </div>
@@ -1062,8 +1703,8 @@ const ChessTrainingApp = () => {
             <h3 style={{fontSize: '1.5rem', marginBottom: '20px', color: '#374151'}}>How it works</h3>
             <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '20px'}}>
               <div>
-                <h4 style={{fontWeight: '600', marginBottom: '10px', color: '#374151'}}>🎯 Focus on Your Side</h4>
-                <p style={{color: '#6b7280', fontSize: '0.9rem', lineHeight: '1.5'}}>The opponent moves automatically based on opening theory. You only need to learn your moves!</p>
+                <h4 style={{fontWeight: '600', marginBottom: '10px', color: '#374151'}}>🎯 Choose Your Variation</h4>
+                <p style={{color: '#6b7280', fontSize: '0.9rem', lineHeight: '1.5'}}>Each opening has 5 different variations to practice. Pick a specific line or practice randomly!</p>
               </div>
               <div>
                 <h4 style={{fontWeight: '600', marginBottom: '10px', color: '#374151'}}>🤖 Smart AI Responses</h4>
@@ -1076,7 +1717,7 @@ const ChessTrainingApp = () => {
             </div>
             <div style={{marginTop: '20px', padding: '15px', backgroundColor: '#f0f9ff', borderRadius: '8px', border: '1px solid #0ea5e9'}}>
               <p style={{color: '#0c4a6e', fontSize: '0.9rem', textAlign: 'center'}}>
-                <strong>💡 Tip:</strong> Wait for the opponent to move automatically, then make your best move. The AI will show you when it's your turn!
+                <strong>💡 Tip:</strong> Each opening now includes multiple variations like the Classical, Schmidt, and Steinitz lines. Master them all or focus on your favorites!
               </p>
             </div>
           </div>
@@ -1086,6 +1727,7 @@ const ChessTrainingApp = () => {
   }
 
   const opening = openingDatabases[trainingMode];
+  const variation = opening.variations[selectedVariation];
 
   return (
     <div style={styles.container}>
@@ -1100,7 +1742,10 @@ const ChessTrainingApp = () => {
             <h2 style={{fontSize: '2rem', color: '#92400e', marginBottom: '5px'}}>
               {opening.name}
             </h2>
-            <p style={{color: '#a16207'}}>Playing as {opening.color}</p>
+            <p style={{color: '#a16207', fontSize: '1rem', fontWeight: '600'}}>
+              {variation.name}
+            </p>
+            <p style={{color: '#a16207', fontSize: '0.9rem'}}>Playing as {opening.color}</p>
           </div>
 
           <div style={{display: 'flex', gap: '15px'}}>
@@ -1194,10 +1839,18 @@ const ChessTrainingApp = () => {
                       const isSelected = selectedSquare && selectedSquare[0] === rowIndex && selectedSquare[1] === colIndex;
                       const isDragging = draggedPiece && draggedPiece.fromRow === rowIndex && draggedPiece.fromCol === colIndex;
 
-                      // Chess.com style colors
+                      // Check if this square is part of the last move (using actual board coordinates)
+                      const isLastMoveFrom = lastMove && lastMove.from.row === rowIndex && lastMove.from.col === colIndex;
+                      const isLastMoveTo = lastMove && lastMove.to.row === rowIndex && lastMove.to.col === colIndex;
+                      const isLastMoveSquare = isLastMoveFrom || isLastMoveTo;
+
+                      // Chess.com style colors with last move highlighting
                       let backgroundColor;
                       if (isSelected) {
                         backgroundColor = '#f7dc6f'; // Yellow highlight for selected
+                      } else if (isLastMoveSquare) {
+                        // Use chess.com style yellow-green for last move
+                        backgroundColor = isLightSquare ? '#f7f769' : '#bbcb44'; // Lighter and darker yellow-green
                       } else {
                         backgroundColor = isLightSquare ? '#f0d9b5' : '#b58863'; // Chess.com colors
                       }
@@ -1242,12 +1895,20 @@ const ChessTrainingApp = () => {
                           }}
                           onMouseEnter={(e) => {
                             if (!isSelected && !draggedPiece) {
-                              e.target.style.backgroundColor = isLightSquare ? '#ead5aa' : '#a67c52';
+                              // Only apply hover effect if not selected and not part of last move
+                              if (!isLastMoveSquare) {
+                                e.target.style.backgroundColor = isLightSquare ? '#ead5aa' : '#a67c52';
+                              }
                             }
                           }}
                           onMouseLeave={(e) => {
                             if (!isSelected && !draggedPiece) {
-                              e.target.style.backgroundColor = isLightSquare ? '#f0d9b5' : '#b58863';
+                              // Restore proper color based on square state
+                              if (isLastMoveSquare) {
+                                e.target.style.backgroundColor = isLightSquare ? '#f7f769' : '#bbcb44';
+                              } else {
+                                e.target.style.backgroundColor = isLightSquare ? '#f0d9b5' : '#b58863';
+                              }
                             }
                           }}
                         >
@@ -1262,13 +1923,7 @@ const ChessTrainingApp = () => {
                                 justifyContent: 'center'
                               }}
                             >
-                              {(() => {
-                                console.log('Rendering piece:', piece, 'at', rowIndex, colIndex);
-                                console.log('About to call getPieceSVG...');
-                                const result = getPieceSVG(piece);
-                                console.log('getPieceSVG returned:', result);
-                                return result;
-                              })()}
+                              {getPieceSVG(piece)}
                             </div>
                           )}
                         </div>
@@ -1386,6 +2041,11 @@ const ChessTrainingApp = () => {
                 {((opening.color === 'white' && currentPlayer === 'white') ||
                   (opening.color === 'black' && currentPlayer === 'black')) ? 'Your turn!' : 'Opponent thinking...'}
               </p>
+              {lastMove && (
+                <p style={{fontSize: '0.8rem', color: '#9ca3af', marginTop: '8px'}}>
+                  Last move: {getSquareName(lastMove.from.row, lastMove.from.col)}-{getSquareName(lastMove.to.row, lastMove.to.col)} (ID: {lastMove.id})
+                </p>
+              )}
             </div>
 
             <div style={styles.infoCard}>
